@@ -1,6 +1,6 @@
 # %%
 import numpy as np
-import pyfar as pf
+import dtw
 import sofar as sf
 import matplotlib.pyplot as plt
 
@@ -61,12 +61,39 @@ for i in range(Z.shape[0]):
     ax.plot(x, y[i], Z[i, :], color="black")
 plt.grid()
 
-# idx = 0
-# for ii in contralat_angle_idx:
-#     idx += 1
-#     plt.subplot(len(contralat_angle_idx) + 1, 1, idx)
-#     plt.plot(t_axis[50:128], np.squeeze(data_plot[idx - 1, 50:128].T))
-#     plt.text(2.5, 0.5 * np.max(data_plot[idx - 1, 50:128]), f"{hrir_angles[ii]}°")
-#     plt.grid()
+# %% Calculate DTW between two HRIRs
+ir_idx1 = np.where((hrir_angles == 250))[0][0]
+ir_idx2 = ir_idx1 + 2
 
-# %%
+query = np.squeeze(hrir_data_horizon[ir_idx1, 0, 50:150])
+reference = np.squeeze(hrir_data_horizon[ir_idx2, 0, 50:150])
+
+# stepPattern = dtw.rabinerJuangStepPattern(6, "c")
+stepPattern = dtw.symmetricP2
+
+alignment = dtw.dtw(query, reference, step_pattern=stepPattern, keep_internals=True)
+alignment.plot(type="threeway")
+
+dtw.dtwPlotTwoWay(alignment, xts=query, yts=reference, offset=-500)
+
+print(stepPattern)
+stepPattern.plot()
+
+# %% Test warping
+wq = dtw.warp(alignment, index_reference=False)
+wt = dtw.warp(alignment, index_reference=True)
+
+
+plt.figure()
+plt.plot(reference, label="Reference", color="tab:blue")
+plt.plot(query, label="Query", color="tab:orange")
+plt.plot(query[wq], label="Warped Query", color="tab:blue", linestyle="--")
+plt.title("Warping query")
+plt.legend()
+
+plt.figure()
+plt.plot(reference, label="Reference", color="tab:blue")
+plt.plot(query, label="Query", color="tab:orange")
+plt.plot(reference[wt], label="Warped Reference", color="tab:orange", linestyle="--")
+plt.title("Warping reference")
+plt.legend()
