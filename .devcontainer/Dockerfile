@@ -19,6 +19,7 @@ RUN apt-get update \
     curl \
     ca-certificates \
     git \
+    git-lfs \
     jackd \
     libglib2.0-0 \
     libsm6 \
