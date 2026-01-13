@@ -1,9 +1,9 @@
 import numpy as np
 from scipy.interpolate import CubicSpline
-from scipy.interpolate import lagrange
 import dtw
 import matplotlib.pyplot as plt
 from utils import metrics
+import pandas as pd
 
 # global variables
 config = {
@@ -19,7 +19,9 @@ config = {
     "ir_range": range(0, 256),  # taps of the IR to consider in analysis
     "stepPattern": dtw.symmetricP2,  # DTW step pattern
     # "stepPattern": dtw.rabinerJuangStepPattern(6, "c"),
-    "plot_lower_limit": -100,  # dB
+    "plot_lower_limit": -80,  # dB
+    "export_figures": True,
+    "export_results": True,
 }
 
 
@@ -99,6 +101,52 @@ def inteprolate_ir(
     return ir_interpolated
 
 
+def extract_median_error_per_quadrant(
+    sm_values: np.ndarray, angles: np.ndarray, angle_spacing: int, in_db: bool = False
+) -> tuple[float, float, float, float, float]:
+    """Calculate the median system mismatch per quadrant on all inteprolated positions
+
+    Parameters
+    ----------
+    sm_values : np.ndarray
+        system mismatch values
+    angles : np.ndarray
+        angles corresponding to the system mismatch values
+    angle_spacing : int
+        angle spacing used for reference positions
+
+    Returns
+    -------
+    tuple[float,float, float, float, float]
+        median system mismatch values overall and for front, back, contralateral, and ipsilateral quadrants
+    """
+
+    indices_interpolated = angles % angle_spacing != 0
+
+    index_mask_front = (
+        ((angles >= 315) & (angles < 360)) | (angles <= 45)
+    ) & indices_interpolated
+
+    index_mask_back = (angles >= 135) & (angles <= 225) & indices_interpolated
+    index_mask_clat = (angles >= 45) & (angles <= 135) & indices_interpolated
+    index_mask_ilat = (angles >= 225) & (angles <= 315) & indices_interpolated
+
+    sm_overall = np.median(sm_values[indices_interpolated])
+    sm_front = np.median(sm_values[index_mask_front])
+    sm_back = np.median(sm_values[index_mask_back])
+    sm_clat = np.median(sm_values[index_mask_clat])
+    sm_ilat = np.median(sm_values[index_mask_ilat])
+
+    if in_db:
+        sm_overall = 20 * np.log10(sm_overall)
+        sm_front = 20 * np.log10(sm_front)
+        sm_back = 20 * np.log10(sm_back)
+        sm_clat = 20 * np.log10(sm_clat)
+        sm_ilat = 20 * np.log10(sm_ilat)
+
+    return sm_overall, sm_front, sm_back, sm_clat, sm_ilat
+
+
 def main():
     # Import dataset
     ir_data = np.load(config["dataset_path"])
@@ -108,6 +156,18 @@ def main():
 
     del ir_data
 
+    results = pd.DataFrame(
+        columns=[
+            "method",
+            "spacing",
+            "sm_overall",
+            "sm_front",
+            "sm_back",
+            "sm_clat",
+            "sm_ilat",
+        ]
+    )
+
     for angle_spacing in config["angle_spacings"]:
         # Select reference positions based on angle spacing
         ref_indices = np.where(angles % angle_spacing == 0)[0]
@@ -116,9 +176,9 @@ def main():
         )  # Symmetric setup --> use one side only
         ir_refs = ref_irs[:, config["ir_range"]]
 
-        sm_dtw = np.zeros_like(angles, dtype=float)
-        sm_nn = np.zeros_like(angles, dtype=float)
-        sm_linear = np.zeros_like(angles, dtype=float)
+        sm_dtw_tmp = np.zeros_like(angles, dtype=float)
+        sm_nn_tmp = np.zeros_like(angles, dtype=float)
+        sm_linear_tmp = np.zeros_like(angles, dtype=float)
 
         # Outer loop - iterate over all fixed positions
         for ii in range(len(ref_indices) - 1):
@@ -145,39 +205,73 @@ def main():
                 ir_target = np.squeeze(irs[idx_target, 0, config["ir_range"]])
 
                 # Calculate system mismatch
-                sm_dtw[idx_target] = metrics.system_mismatch(
+                sm_dtw_tmp[idx_target] = metrics.system_mismatch(
                     ir_target, ir_interpolated_dtw
                 )
-                sm_nn[idx_target] = metrics.system_mismatch(
+                sm_nn_tmp[idx_target] = metrics.system_mismatch(
                     ir_target, ir_interpolated_nn
                 )
-                sm_linear[idx_target] = metrics.system_mismatch(
+                sm_linear_tmp[idx_target] = metrics.system_mismatch(
                     ir_target, ir_inteprolated_linear
                 )
 
-        # Set system mismatch at reference positions to lower plot limit
-        sm_dtw[ref_indices] = 10 ** (config["plot_lower_limit"] / 20)
-        sm_nn[ref_indices] = 10 ** (config["plot_lower_limit"] / 20)
-        sm_linear[ref_indices] = 10 ** (config["plot_lower_limit"] / 20)
+        # Extract system mismatch per quadrant
+        sm_dtw_overall, sm_dtw_front, sm_dtw_back, sm_dtw_clat, sm_dtw_ilat = (
+            extract_median_error_per_quadrant(sm_dtw_tmp, angles, angle_spacing, True)
+        )
+        sm_nn_overall, sm_nn_front, sm_nn_back, sm_nn_clat, sm_nn_ilat = (
+            extract_median_error_per_quadrant(sm_nn_tmp, angles, angle_spacing, True)
+        )
+        (
+            sm_linear_overall,
+            sm_linear_front,
+            sm_linear_back,
+            sm_linear_clat,
+            sm_linear_ilat,
+        ) = extract_median_error_per_quadrant(
+            sm_linear_tmp, angles, angle_spacing, True
+        )
 
-        sm_dtw_db = 20 * np.log10(sm_dtw)
-        sm_nn_db = 20 * np.log10(sm_nn)
-        sm_linear_db = 20 * np.log10(sm_linear)
+        results = pd.concat(
+            [
+                results,
+                pd.DataFrame(
+                    {
+                        "method": ["DTW", "Nearest Neighbor", "Linear"],
+                        "spacing": [angle_spacing, angle_spacing, angle_spacing],
+                        "sm_overall": [
+                            sm_dtw_overall,
+                            sm_nn_overall,
+                            sm_linear_overall,
+                        ],
+                        "sm_front": [sm_dtw_front, sm_nn_front, sm_linear_front],
+                        "sm_back": [sm_dtw_back, sm_nn_back, sm_linear_back],
+                        "sm_clat": [sm_dtw_clat, sm_nn_clat, sm_linear_clat],
+                        "sm_ilat": [sm_dtw_ilat, sm_nn_ilat, sm_linear_ilat],
+                    }
+                ),
+            ],
+            ignore_index=True,
+        )
+
+        # Plot results with regularization for low values
+        reg_lin = 10 ** (config["plot_lower_limit"] / 20)
+        sm_dtw_tmp[sm_dtw_tmp < reg_lin] = reg_lin
+        sm_nn_tmp[sm_nn_tmp < reg_lin] = reg_lin
+        sm_linear_tmp[sm_linear_tmp < reg_lin] = reg_lin
+
+        sm_dtw_db = 20 * np.log10(sm_dtw_tmp)
+        sm_nn_db = 20 * np.log10(sm_nn_tmp)
+        sm_linear_db = 20 * np.log10(sm_linear_tmp)
 
         # Calculate mean/median on all positions that are interpolated
         interp_mask = np.ones_like(angles, dtype=bool)
         interp_mask[ref_indices] = False
 
         print(f"System mismatch for angle spacing {angle_spacing}°:")
-        print(
-            f"DTW: Median: {np.median(sm_dtw_db[interp_mask]):.2f} dB | Mean: {20*np.log10(np.mean(sm_dtw[interp_mask])):.2f} dB"
-        )
-        print(
-            f"Linear: Median: {np.median(sm_linear_db[interp_mask]):.2f} dB | Mean: {20*np.log10(np.mean(sm_linear[interp_mask])):.2f} dB"
-        )
-        print(
-            f"Nearest neighbor: Median: {np.median(sm_nn_db[interp_mask]):.2f} dB | Mean: {20*np.log10(np.mean(sm_nn[interp_mask])):.2f} dB"
-        )
+        print(f"DTW: Median: {sm_dtw_overall} dB")
+        print(f"Linear: Median: {sm_linear_overall} dB")
+        print(f"Nearest neighbor: Median: {sm_nn_overall} dB")
         print("----------")
 
         # Plot results
@@ -190,6 +284,8 @@ def main():
         plt.title(f"System mismatch of interpolated IRs, spacing {angle_spacing}°")
         plt.legend()
         plt.grid()
+
+    print(results)
     plt.show()
 
 
