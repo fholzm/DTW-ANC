@@ -8,7 +8,14 @@ from utils import metrics
 # global variables
 config = {
     "dataset_path": "data/TASCAR_IRs/measured_irs.npz",
-    "angle_spacing": 20,  # spacing of the reference points, degrees
+    "angle_spacings": [
+        5,
+        10,
+        15,
+        20,
+        30,
+        45,
+    ],  # spacing of the reference points, degrees
     "ir_range": range(0, 256),  # taps of the IR to consider in analysis
     "stepPattern": dtw.symmetricP2,  # DTW step pattern
     # "stepPattern": dtw.rabinerJuangStepPattern(6, "c"),
@@ -101,76 +108,88 @@ def main():
 
     del ir_data
 
-    # Select reference positions based on angle spacing
-    ref_indices = np.where(angles % config["angle_spacing"] == 0)[0]
-    ref_irs = np.squeeze(irs[ref_indices, 0])  # Symmetric setup --> use one side only
-    ir_refs = ref_irs[:, config["ir_range"]]
+    for angle_spacing in config["angle_spacings"]:
+        # Select reference positions based on angle spacing
+        ref_indices = np.where(angles % angle_spacing == 0)[0]
+        ref_irs = np.squeeze(
+            irs[ref_indices, 0]
+        )  # Symmetric setup --> use one side only
+        ir_refs = ref_irs[:, config["ir_range"]]
 
-    sm_dtw = np.zeros_like(angles, dtype=float)
-    sm_nn = np.zeros_like(angles, dtype=float)
-    sm_linear = np.zeros_like(angles, dtype=float)
+        sm_dtw = np.zeros_like(angles, dtype=float)
+        sm_nn = np.zeros_like(angles, dtype=float)
+        sm_linear = np.zeros_like(angles, dtype=float)
 
-    # Outer loop - iterate over all fixed positions
-    for ii in range(len(ref_indices) - 1):
-        ir_pos0 = ir_refs[ii]
-        ir_pos1 = ir_refs[ii + 1]
+        # Outer loop - iterate over all fixed positions
+        for ii in range(len(ref_indices) - 1):
+            ir_pos0 = ir_refs[ii]
+            ir_pos1 = ir_refs[ii + 1]
 
-        ir_pos1_warped, displacement = calculate_dtw(
-            ir_pos1, ir_pos0, config["stepPattern"]
+            ir_pos1_warped, displacement = calculate_dtw(
+                ir_pos1, ir_pos0, config["stepPattern"]
+            )
+
+            # Inner loop - interpolate to all positions in between
+            for jj in range(1, angle_spacing):
+                alpha = 1 - jj / angle_spacing
+                ir_interpolated_dtw = inteprolate_ir(
+                    ir_pos0, ir_pos1_warped, displacement, alpha
+                )
+
+                ir_interpolated_nn = ir_pos0 if alpha >= 0.5 else ir_pos1
+                ir_inteprolated_linear = alpha * ir_pos0 + (1 - alpha) * ir_pos1
+
+                # Find target IR
+                angle_target = angles[ref_indices[ii]] + jj
+                idx_target = np.where(angles == angle_target)[0][0]
+                ir_target = np.squeeze(irs[idx_target, 0, config["ir_range"]])
+
+                # Calculate system mismatch
+                sm_dtw[idx_target] = metrics.system_mismatch(
+                    ir_target, ir_interpolated_dtw
+                )
+                sm_nn[idx_target] = metrics.system_mismatch(
+                    ir_target, ir_interpolated_nn
+                )
+                sm_linear[idx_target] = metrics.system_mismatch(
+                    ir_target, ir_inteprolated_linear
+                )
+
+        # Set system mismatch at reference positions to lower plot limit
+        sm_dtw[ref_indices] = 10 ** (config["plot_lower_limit"] / 20)
+        sm_nn[ref_indices] = 10 ** (config["plot_lower_limit"] / 20)
+        sm_linear[ref_indices] = 10 ** (config["plot_lower_limit"] / 20)
+
+        sm_dtw_db = 20 * np.log10(sm_dtw)
+        sm_nn_db = 20 * np.log10(sm_nn)
+        sm_linear_db = 20 * np.log10(sm_linear)
+
+        # Calculate mean/median on all positions that are interpolated
+        interp_mask = np.ones_like(angles, dtype=bool)
+        interp_mask[ref_indices] = False
+
+        print(f"System mismatch for angle spacing {angle_spacing}°:")
+        print(
+            f"DTW: Median: {np.median(sm_dtw_db[interp_mask]):.2f} dB | Mean: {20*np.log10(np.mean(sm_dtw[interp_mask])):.2f} dB"
         )
+        print(
+            f"Linear: Median: {np.median(sm_linear_db[interp_mask]):.2f} dB | Mean: {20*np.log10(np.mean(sm_linear[interp_mask])):.2f} dB"
+        )
+        print(
+            f"Nearest neighbor: Median: {np.median(sm_nn_db[interp_mask]):.2f} dB | Mean: {20*np.log10(np.mean(sm_nn[interp_mask])):.2f} dB"
+        )
+        print("----------")
 
-        # Inner loop - interpolate to all positions in between
-        for jj in range(1, config["angle_spacing"]):
-            alpha = 1 - jj / config["angle_spacing"]
-            ir_interpolated_dtw = inteprolate_ir(
-                ir_pos0, ir_pos1_warped, displacement, alpha
-            )
-
-            ir_interpolated_nn = ir_pos0 if alpha >= 0.5 else ir_pos1
-            ir_inteprolated_linear = alpha * ir_pos0 + (1 - alpha) * ir_pos1
-
-            # Find target IR
-            angle_target = angles[ref_indices[ii]] + jj
-            idx_target = np.where(angles == angle_target)[0][0]
-            ir_target = np.squeeze(irs[idx_target, 0, config["ir_range"]])
-
-            # Calculate system mismatch
-            sm_dtw[idx_target] = metrics.system_mismatch(ir_target, ir_interpolated_dtw)
-            sm_nn[idx_target] = metrics.system_mismatch(ir_target, ir_interpolated_nn)
-            sm_linear[idx_target] = metrics.system_mismatch(
-                ir_target, ir_inteprolated_linear
-            )
-
-    # Set system mismatch at reference positions to lower plot limit
-    sm_dtw[ref_indices] = 10 ** (config["plot_lower_limit"] / 20)
-    sm_nn[ref_indices] = 10 ** (config["plot_lower_limit"] / 20)
-    sm_linear[ref_indices] = 10 ** (config["plot_lower_limit"] / 20)
-
-    sm_dtw_db = 20 * np.log10(sm_dtw)
-    sm_nn_db = 20 * np.log10(sm_nn)
-    sm_linear_db = 20 * np.log10(sm_linear)
-
-    # Calculate mean/median on all positions that are interpolated
-    interp_mask = np.ones_like(angles, dtype=bool)
-    interp_mask[ref_indices] = False
-    print(f"Median SM DTW: {np.median(sm_dtw_db[interp_mask]):.2f} dB")
-    print(f"Median SM Linear: {np.median(sm_linear_db[interp_mask]):.2f} dB")
-    print(f"Median SM NN: {np.median(sm_nn_db[interp_mask]):.2f} dB \n")
-
-    print(f"Mean SM DTW: {20*np.log10(np.mean(sm_dtw[interp_mask])):.2f} dB")
-    print(f"Mean SM Linear: {20*np.log10(np.mean(sm_linear[interp_mask])):.2f} dB")
-    print(f"Mean SM NN: {20*np.log10(np.mean(sm_nn[interp_mask])):.2f} dB")
-
-    # Plot results
-    plt.figure()
-    plt.plot(angles, sm_dtw_db, label="DTW-based interpolation")
-    plt.plot(angles, sm_linear_db, label="Linear interpolation")
-    plt.plot(angles, sm_nn_db, label="Nearest neighbor")
-    plt.xlabel("Angle (degrees)")
-    plt.ylabel("System mismatch")
-    plt.title("System mismatch of interpolated HRIRs")
-    plt.legend()
-    plt.grid()
+        # Plot results
+        plt.figure()
+        plt.plot(angles, sm_dtw_db, label="DTW-based interpolation")
+        plt.plot(angles, sm_linear_db, label="Linear interpolation")
+        plt.plot(angles, sm_nn_db, label="Nearest neighbor")
+        plt.xlabel("Angle (degrees)")
+        plt.ylabel("System mismatch")
+        plt.title(f"System mismatch of interpolated IRs, spacing {angle_spacing}°")
+        plt.legend()
+        plt.grid()
     plt.show()
 
 
