@@ -150,6 +150,85 @@ def extract_median_error_per_quadrant(
     return sm_overall, sm_front, sm_back, sm_clat, sm_ilat
 
 
+def plot_mag_phase_error(
+    angles: np.ndarray,
+    mag_error: np.ndarray,
+    phase_error: np.ndarray,
+    fs: float,
+    angle_spacing: int,
+    method_name: str,
+    export_figures: bool = False,
+) -> None:
+    """Plot magnitude and phase error for interpolated IRs
+
+    Parameters
+    ----------
+    angles : np.ndarray
+        Angles array
+    mag_error : np.ndarray
+        Magnitude error matrix (angles x frequencies)
+    phase_error : np.ndarray
+        Phase error matrix (angles x frequencies)
+    fs : float
+        Sampling frequency
+    angle_spacing : int
+        Angle spacing used
+    method_name : str
+        Name of the interpolation method
+    export_figures : bool
+        Whether to export the figure
+    """
+    freq = np.linspace(0, fs / 2, config["plot_nfft"] // 2 + 1)
+
+    plt.figure()
+    plt.subplot(2, 1, 1)
+    plt.pcolormesh(
+        angles,
+        freq,
+        20 * np.log10(mag_error.T + 1e-12),
+        vmax=0,
+        vmin=config["plot_mag_lower_limit"],
+        shading="auto",
+    )
+    plt.yscale("log")
+    ax = plt.gca()
+    ax.yaxis.set_major_formatter(ScalarFormatter())
+    ax.yaxis.get_major_formatter().set_scientific(False)
+    plt.colorbar(label="Magnitude error (dB)")
+    plt.title(f"{method_name} magnitude error, spacing {angle_spacing}°")
+    plt.xlabel("Angle (degrees)")
+    plt.ylabel("Frequency (Hz)")
+    plt.ylim(10, fs / 2)
+
+    plt.subplot(2, 1, 2)
+    plt.pcolormesh(
+        angles,
+        freq,
+        phase_error.T,
+        vmin=-np.pi,
+        vmax=np.pi,
+        cmap="seismic",
+        shading="auto",
+    )
+    plt.yscale("log")
+    ax = plt.gca()
+    ax.yaxis.set_major_formatter(ScalarFormatter())
+    ax.yaxis.get_major_formatter().set_scientific(False)
+    plt.colorbar(label="Phase error (radians)")
+    plt.title(f"{method_name} phase error, spacing {angle_spacing}°")
+    plt.xlabel("Angle (degrees)")
+    plt.ylabel("Frequency (Hz)")
+    plt.ylim(10, fs / 2)
+    plt.tight_layout()
+
+    if export_figures:
+        method_slug = method_name.lower().replace(" ", "_").replace("-", "_")
+        plt.savefig(
+            f"figures/mag_phase_error_{method_slug}_spacing_{angle_spacing}deg.png",
+            dpi=300,
+        )
+
+
 def main():
     # Import dataset
     ir_data = np.load(config["dataset_path"])
@@ -324,53 +403,33 @@ def main():
             )
 
         # Plot results for magnitude/phase error
-        freq = np.linspace(0, fs / 2, config["plot_nfft"] // 2 + 1)
-
-        plt.figure()
-        plt.subplot(2, 1, 1)
-        plt.pcolormesh(
+        plot_mag_phase_error(
             angles,
-            freq,
-            20 * np.log10(mag_error_dtw.T + 1e-12),
-            vmax=0,
-            vmin=config["plot_mag_lower_limit"],
-            shading="auto",
+            mag_error_dtw,
+            phase_error_dtw,
+            fs,
+            angle_spacing,
+            "DTW-based interpolation",
+            config["export_figures"],
         )
-        plt.yscale("log")
-        ax = plt.gca()
-        ax.yaxis.set_major_formatter(ScalarFormatter())
-        ax.yaxis.get_major_formatter().set_scientific(False)
-        plt.colorbar(label="Magnitude error (dB)")
-        plt.title(f"DTW-based interpolation magnitude error, spacing {angle_spacing}°")
-        plt.xlabel("Angle (degrees)")
-        plt.ylabel("Frequency (Hz)")
-        plt.ylim(10, fs / 2)
-
-        plt.subplot(2, 1, 2)
-        plt.pcolormesh(
+        plot_mag_phase_error(
             angles,
-            freq,
-            phase_error_dtw.T,
-            vmin=-np.pi,
-            vmax=np.pi,
-            cmap="seismic",
-            shading="auto",
+            mag_error_linear,
+            phase_error_linear,
+            fs,
+            angle_spacing,
+            "Linear interpolation",
+            config["export_figures"],
         )
-        plt.yscale("log")
-        ax = plt.gca()
-        ax.yaxis.set_major_formatter(ScalarFormatter())
-        ax.yaxis.get_major_formatter().set_scientific(False)
-        plt.colorbar(label="Phase error (radians)")
-        plt.title(f"DTW-based interpolation phase error, spacing {angle_spacing}°")
-        plt.xlabel("Angle (degrees)")
-        plt.ylabel("Frequency (Hz)")
-        plt.ylim(10, fs / 2)
-        plt.tight_layout()
-
-        if config["export_figures"]:
-            plt.savefig(
-                f"figures/mag_phase_error_dtw_spacing_{angle_spacing}deg.png", dpi=300
-            )
+        plot_mag_phase_error(
+            angles,
+            mag_error_nn,
+            phase_error_nn,
+            fs,
+            angle_spacing,
+            "Nearest neighbor",
+            config["export_figures"],
+        )
 
     if config["export_results"]:
         results.to_csv("results/system_mismatch_results.csv", index=False)
