@@ -12,7 +12,7 @@ def system_mismatch(ir_ref, ir_query):
 
 
 # %% Load and inspect HRIR
-hrir = sf.read_sofa("HRIRs/scut/SCUT_KEMAR_radius_0.25.sofa")
+hrir = sf.read_sofa("data/scut/SCUT_KEMAR_radius_0.25.sofa")
 hrir.inspect()
 
 # %%
@@ -69,7 +69,7 @@ for i in range(Z.shape[0]):
 plt.grid()
 
 # %% Calculate DTW between two HRIRs
-ir_idx1 = np.where((hrir_angles == 270))[0][0]
+ir_idx1 = np.where((hrir_angles == 240))[0][0]
 ir_idx2 = ir_idx1 + 4
 
 query = np.squeeze(hrir_data_horizon[ir_idx1, 0, 0:150])
