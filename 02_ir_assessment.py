@@ -285,6 +285,15 @@ def main():
         plt.legend()
         plt.grid()
 
+        if config["export_figures"]:
+            plt.savefig(
+                f"figures/system_mismatch_spacing_{angle_spacing}deg.png", dpi=300
+            )
+
+    if config["export_results"]:
+        results.to_csv("results/system_mismatch_results.csv", index=False)
+        results.to_pickle("results/system_mismatch_results.pkl")
+
     print(results)
     plt.show()
 
