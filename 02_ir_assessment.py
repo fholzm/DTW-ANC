@@ -20,8 +20,8 @@ config = {
     "ir_range": range(0, 256),  # taps of the IR to consider in analysis
     "stepPattern": dtw.symmetricP2,  # DTW step pattern
     # "stepPattern": dtw.rabinerJuangStepPattern(6, "c"),
-    "plot_sm_lower_limit": -80,  # dB
-    "plot_mag_lower_limit": -40,  # dB
+    "plot_sm_lower_limit": -40,  # dB
+    "plot_mag_lower_limit": -20,  # dB
     "plot_nfft": 512,
     "export_figures": True,
     "export_results": True,
@@ -205,8 +205,8 @@ def plot_mag_phase_error(
         angles,
         freq,
         phase_error.T,
-        vmin=-np.pi,
-        vmax=np.pi,
+        vmin=-np.pi / 2,
+        vmax=np.pi / 2,
         cmap="seismic",
         shading="auto",
     )
