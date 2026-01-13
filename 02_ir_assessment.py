@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.interpolate import CubicSpline
+from scipy.interpolate import lagrange
 import dtw
 import matplotlib.pyplot as plt
 from utils import metrics
@@ -149,9 +150,16 @@ def main():
     sm_nn_db = 20 * np.log10(sm_nn)
     sm_linear_db = 20 * np.log10(sm_linear)
 
-    print(f"Median SM DTW: {np.median(sm_dtw_db):.2f} dB")
-    print(f"Median SM Linear: {np.median(sm_linear_db):.2f} dB")
-    print(f"Median SM NN: {np.median(sm_nn_db):.2f} dB")
+    # Calculate mean/median on all positions that are interpolated
+    interp_mask = np.ones_like(angles, dtype=bool)
+    interp_mask[ref_indices] = False
+    print(f"Median SM DTW: {np.median(sm_dtw_db[interp_mask]):.2f} dB")
+    print(f"Median SM Linear: {np.median(sm_linear_db[interp_mask]):.2f} dB")
+    print(f"Median SM NN: {np.median(sm_nn_db[interp_mask]):.2f} dB \n")
+
+    print(f"Mean SM DTW: {20*np.log10(np.mean(sm_dtw[interp_mask])):.2f} dB")
+    print(f"Mean SM Linear: {20*np.log10(np.mean(sm_linear[interp_mask])):.2f} dB")
+    print(f"Mean SM NN: {20*np.log10(np.mean(sm_nn[interp_mask])):.2f} dB")
 
     # Plot results
     plt.figure()
