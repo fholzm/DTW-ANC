@@ -1,4 +1,5 @@
 import numpy as np
+from typing import Optional
 
 
 def system_mismatch(ir_target: np.ndarray, ir_interpolated: np.ndarray) -> float:
@@ -29,3 +30,38 @@ def system_mismatch(ir_target: np.ndarray, ir_interpolated: np.ndarray) -> float
     return float(
         np.linalg.norm(ir_target - ir_interpolated) / np.linalg.norm(ir_target)
     )
+
+
+def mag_phase_error(
+    ir_target: np.ndarray,
+    ir_interpolated: np.ndarray,
+    nFFT: Optional[int] = None,
+    fs: Optional[float | int] = None,
+    dB: bool = False,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+
+    # If nFFT is not given, set it to next power of two of the longest IR
+    if nFFT is None:
+        nFFT = int(2 ** (np.ceil(np.log2(max(len(ir_target), len(ir_interpolated))))))
+
+    if fs is None:
+        fs = 2 * np.pi
+
+    f_axis = np.linspace(0, fs / 2, nFFT // 2 + 1)
+
+    # Transform to frequency domain
+    IR_TARGET_FFT = np.fft.rfft(ir_target, n=nFFT)
+    IR_INTERPOLATED_FFT = np.fft.rfft(ir_interpolated, n=nFFT)
+
+    # Calculate relative magnitude error
+    mag_error = np.abs(IR_TARGET_FFT - IR_INTERPOLATED_FFT) / np.abs(IR_TARGET_FFT)
+
+    if dB:
+        mag_error = 20 * np.log10(mag_error + 1e-12)  # add small value to avoid log(0)
+
+    # Calculate phase error
+    phase_error = np.unwrap(np.angle(IR_TARGET_FFT, deg=False)) - np.unwrap(
+        np.angle(IR_INTERPOLATED_FFT, deg=False)
+    )
+
+    return f_axis, mag_error, phase_error

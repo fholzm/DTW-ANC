@@ -2,6 +2,7 @@ import numpy as np
 from scipy.interpolate import CubicSpline
 import dtw
 import matplotlib.pyplot as plt
+from matplotlib.ticker import ScalarFormatter
 from utils import metrics
 import pandas as pd
 
@@ -19,7 +20,9 @@ config = {
     "ir_range": range(0, 256),  # taps of the IR to consider in analysis
     "stepPattern": dtw.symmetricP2,  # DTW step pattern
     # "stepPattern": dtw.rabinerJuangStepPattern(6, "c"),
-    "plot_lower_limit": -80,  # dB
+    "plot_sm_lower_limit": -80,  # dB
+    "plot_mag_lower_limit": -40,  # dB
+    "plot_nfft": 512,
     "export_figures": True,
     "export_results": True,
 }
@@ -180,6 +183,13 @@ def main():
         sm_nn_tmp = np.zeros_like(angles, dtype=float)
         sm_linear_tmp = np.zeros_like(angles, dtype=float)
 
+        mag_error_dtw = np.zeros((len(angles), config["plot_nfft"] // 2 + 1))
+        phase_error_dtw = np.zeros((len(angles), config["plot_nfft"] // 2 + 1))
+        mag_error_nn = np.zeros((len(angles), config["plot_nfft"] // 2 + 1))
+        phase_error_nn = np.zeros((len(angles), config["plot_nfft"] // 2 + 1))
+        mag_error_linear = np.zeros((len(angles), config["plot_nfft"] // 2 + 1))
+        phase_error_linear = np.zeros((len(angles), config["plot_nfft"] // 2 + 1))
+
         # Outer loop - iterate over all fixed positions
         for ii in range(len(ref_indices) - 1):
             ir_pos0 = ir_refs[ii]
@@ -213,6 +223,29 @@ def main():
                 )
                 sm_linear_tmp[idx_target] = metrics.system_mismatch(
                     ir_target, ir_inteprolated_linear
+                )
+
+                # Calculate magnitude and phase error for plotting
+                (
+                    f_axis,
+                    mag_error_dtw[ii * angle_spacing + jj],
+                    phase_error_dtw[ii * angle_spacing + jj],
+                ) = metrics.mag_phase_error(
+                    ir_target, ir_interpolated_dtw, nFFT=512, fs=fs, dB=False
+                )
+                (
+                    _,
+                    mag_error_nn[ii * angle_spacing + jj],
+                    phase_error_nn[ii * angle_spacing + jj],
+                ) = metrics.mag_phase_error(
+                    ir_target, ir_interpolated_nn, nFFT=512, fs=fs, dB=False
+                )
+                (
+                    _,
+                    mag_error_linear[ii * angle_spacing + jj],
+                    phase_error_linear[ii * angle_spacing + jj],
+                ) = metrics.mag_phase_error(
+                    ir_target, ir_inteprolated_linear, nFFT=512, fs=fs, dB=False
                 )
 
         # Extract system mismatch per quadrant
@@ -255,7 +288,7 @@ def main():
         )
 
         # Plot results with regularization for low values
-        reg_lin = 10 ** (config["plot_lower_limit"] / 20)
+        reg_lin = 10 ** (config["plot_sm_lower_limit"] / 20)
         sm_dtw_tmp[sm_dtw_tmp < reg_lin] = reg_lin
         sm_nn_tmp[sm_nn_tmp < reg_lin] = reg_lin
         sm_linear_tmp[sm_linear_tmp < reg_lin] = reg_lin
@@ -274,7 +307,7 @@ def main():
         print(f"Nearest neighbor: Median: {sm_nn_overall} dB")
         print("----------")
 
-        # Plot results
+        # Plot results for system mismatch
         plt.figure()
         plt.plot(angles, sm_dtw_db, label="DTW-based interpolation")
         plt.plot(angles, sm_linear_db, label="Linear interpolation")
@@ -288,6 +321,55 @@ def main():
         if config["export_figures"]:
             plt.savefig(
                 f"figures/system_mismatch_spacing_{angle_spacing}deg.png", dpi=300
+            )
+
+        # Plot results for magnitude/phase error
+        freq = np.linspace(0, fs / 2, config["plot_nfft"] // 2 + 1)
+
+        plt.figure()
+        plt.subplot(2, 1, 1)
+        plt.pcolormesh(
+            angles,
+            freq,
+            20 * np.log10(mag_error_dtw.T + 1e-12),
+            vmax=0,
+            vmin=config["plot_mag_lower_limit"],
+            shading="auto",
+        )
+        plt.yscale("log")
+        ax = plt.gca()
+        ax.yaxis.set_major_formatter(ScalarFormatter())
+        ax.yaxis.get_major_formatter().set_scientific(False)
+        plt.colorbar(label="Magnitude error (dB)")
+        plt.title(f"DTW-based interpolation magnitude error, spacing {angle_spacing}°")
+        plt.xlabel("Angle (degrees)")
+        plt.ylabel("Frequency (Hz)")
+        plt.ylim(10, fs / 2)
+
+        plt.subplot(2, 1, 2)
+        plt.pcolormesh(
+            angles,
+            freq,
+            phase_error_dtw.T,
+            vmin=-np.pi,
+            vmax=np.pi,
+            cmap="seismic",
+            shading="auto",
+        )
+        plt.yscale("log")
+        ax = plt.gca()
+        ax.yaxis.set_major_formatter(ScalarFormatter())
+        ax.yaxis.get_major_formatter().set_scientific(False)
+        plt.colorbar(label="Phase error (radians)")
+        plt.title(f"DTW-based interpolation phase error, spacing {angle_spacing}°")
+        plt.xlabel("Angle (degrees)")
+        plt.ylabel("Frequency (Hz)")
+        plt.ylim(10, fs / 2)
+        plt.tight_layout()
+
+        if config["export_figures"]:
+            plt.savefig(
+                f"figures/mag_phase_error_dtw_spacing_{angle_spacing}deg.png", dpi=300
             )
 
     if config["export_results"]:
