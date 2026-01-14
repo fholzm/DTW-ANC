@@ -38,6 +38,7 @@ def mag_phase_error(
     nFFT: Optional[int] = None,
     fs: Optional[float | int] = None,
     dB: bool = False,
+    discont: float = np.pi,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
 
     # If nFFT is not given, set it to next power of two of the longest IR
@@ -60,8 +61,8 @@ def mag_phase_error(
         mag_error = 20 * np.log10(mag_error + 1e-12)  # add small value to avoid log(0)
 
     # Calculate phase error
-    phase_error = np.unwrap(np.angle(IR_TARGET_FFT, deg=False)) - np.unwrap(
-        np.angle(IR_INTERPOLATED_FFT, deg=False)
-    )
+    phase_error = np.unwrap(
+        np.angle(IR_TARGET_FFT, deg=False), discont=discont
+    ) - np.unwrap(np.angle(IR_INTERPOLATED_FFT, deg=False), discont=discont)
 
     return f_axis, mag_error, phase_error
