@@ -139,7 +139,7 @@ def inteprolate_ir(
     displacement_pos1: np.ndarray,
     alpha: float,
 ) -> np.ndarray:
-    """Interpolate between two impulse responses using DTW-based warping
+    """Interpolate between two impulse responses using DTW-based warping, based on warping a single IR
 
     Parameters
     ----------
@@ -178,6 +178,47 @@ def inteprolate_ir(
     # Apply spline interpolation to get samples at integer-indices
     cs = CubicSpline(idx_dewarping, ir_interpolated_warped)
     ir_interpolated = cs(np.arange(len(ir_interpolated_warped)))
+
+    return ir_interpolated
+
+
+def inteprolate_ir_v2(
+    ir_pos0: np.ndarray,
+    ir_pos1: np.ndarray,
+    displacement_pos0: np.ndarray,
+    displacement_pos1: np.ndarray,
+    alpha: float,
+):
+    """Interpolate between two impulse responses using DTW-based warping, based on warping both IRs
+
+    Parameters
+    ----------
+    ir_pos0 : np.ndarray
+        Impulse response at position 0
+    ir_pos1 : np.ndarray
+        Impulse response at position 1
+    displacement_pos0 : np.ndarray
+        Displacement vector used for warping at position 0
+    displacement_pos1 : np.ndarray
+        Displacement vector used for warping at position 1
+    alpha : float
+        Interpolation factor (0 = position 1, 1 = position 0)
+    Returns
+    -------
+    ir_interpolated : np.ndarray
+        Interpolated impulse response
+    """
+
+    cs_pos0 = CubicSpline(np.arange(len(ir_pos0)), ir_pos0)
+    cs_pos1 = CubicSpline(np.arange(len(ir_pos1)), ir_pos1)
+
+    idx_warping_pos0 = np.arange(len(ir_pos0)) - displacement_pos0 * (1 - alpha)
+    idx_warping_pos1 = np.arange(len(ir_pos1)) - displacement_pos1 * (alpha)
+
+    ir_pos0_warped = cs_pos0(idx_warping_pos0)
+    ir_pos1_warped = cs_pos1(idx_warping_pos1)
+
+    ir_interpolated = alpha * ir_pos0_warped + (1 - alpha) * ir_pos1_warped
 
     return ir_interpolated
 
@@ -391,6 +432,13 @@ def main():
                     displacement_pos1,
                     alpha,
                 )
+                # ir_interpolated_dtw = inteprolate_ir_v2(
+                #     ir_pos0,
+                #     ir_pos1,
+                #     displacement_pos0,
+                #     displacement_pos1,
+                #     alpha,
+                # )
 
                 ir_interpolated_nn = ir_pos0 if alpha >= 0.5 else ir_pos1
                 ir_inteprolated_linear = alpha * ir_pos0 + (1 - alpha) * ir_pos1
