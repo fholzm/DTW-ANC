@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.interpolate import CubicSpline
 from scipy import signal
+import sofar as sf
 import dtw
 import matplotlib.pyplot as plt
 from matplotlib.ticker import ScalarFormatter
@@ -10,7 +11,8 @@ from typing import Optional
 
 # global variables
 config = {
-    "dataset_path": "data/TASCAR_IRs/measured_irs.npz",
+    # "dataset_path": "data/TASCAR_IRs/measured_irs.npz",
+    "dataset_path": "data/THK_NF/HRIR_CIRC360_NF025.sofa",
     "angle_spacings": [
         5,
         10,
@@ -19,15 +21,75 @@ config = {
         30,
         45,
     ],  # spacing of the reference points, degrees
-    "ir_range": range(0, 256),  # taps of the IR to consider in analysis
+    "ir_range": range(0, 128),  # taps of the IR to consider in analysis
     "stepPattern": dtw.symmetricP2,  # DTW step pattern
     # "stepPattern": dtw.rabinerJuangStepPattern(6, "c"),
-    "plot_sm_lower_limit": -40,  # dB
-    "plot_mag_lower_limit": -20,  # dB
+    "plot_sm_limits": [-40, 8],  # dB
+    "plot_mag_limits": [-20, 0],  # dB
     "plot_nfft": 512,
     "export_figures": True,
     "export_results": True,
 }
+
+
+def load_npz_dataset(file_path: str) -> tuple[np.ndarray, np.ndarray, float]:
+    """Load dataset from npz file
+
+    Parameters
+    ----------
+    file_path : str
+        Path to the npz file
+
+    Returns
+    -------
+    irs : np.ndarray
+        Impulse responses array
+    angles : np.ndarray
+        Angles array
+    fs : float
+        Sampling frequency
+    """
+    ir_data = np.load(file_path)
+    irs = ir_data["irs"]
+    angles = np.round(ir_data["angles"]).astype(int)
+    fs = ir_data["fs"].item()
+
+    return irs, angles, fs
+
+
+def load_sofa_dataset(file_path: str) -> tuple[np.ndarray, np.ndarray, float]:
+    """Load dataset from SOFA file
+
+    Parameters
+    ----------
+    file_path : str
+        Path to the SOFA file
+
+    Returns
+    -------
+    irs : np.ndarray
+        Impulse responses array
+    angles : np.ndarray
+        Angles array
+    fs : float
+        Sampling frequency
+    """
+    sofa_data = sf.read_sofa(file_path, "r")
+    irs = sofa_data.Data_IR
+    angles = 360.0 - sofa_data.SourcePosition[:, 0]  # Convert to intrinsic rotation
+    fs = sofa_data.Data_SamplingRate
+
+    # Sort by angle
+    sort_indices = np.argsort(angles)
+    irs = irs[sort_indices, ...]
+    angles = np.round(angles[sort_indices]).astype(int)
+
+    # Duplicate 360° to 0°
+    if angles[0] != 0.0:
+        irs = np.concatenate((irs[[-1]], irs), axis=0)
+        angles = np.concatenate((np.array([0.0]), angles), axis=0)
+
+    return irs, angles, fs
 
 
 def calculate_dtw(
@@ -241,15 +303,15 @@ def plot_mag_phase_error(
         angles,
         freq,
         20 * np.log10(mag_error.T + 1e-12),
-        vmax=0,
-        vmin=config["plot_mag_lower_limit"],
+        vmax=config["plot_mag_limits"][1],
+        vmin=config["plot_mag_limits"][0],
         shading="auto",
     )
-    # plt.yscale("log")
+    plt.yscale("log")
     ax = plt.gca()
     ax.yaxis.set_major_formatter(ScalarFormatter())
     ax.yaxis.get_major_formatter().set_scientific(False)
-    plt.colorbar(label="Magnitude error (dB)")
+    plt.colorbar(label="Magnitude error (dB)", extend="both")
     plt.title(f"{method_name} magnitude error, spacing {angle_spacing}°")
     plt.xlabel("Angle (degrees)")
     plt.ylabel("Frequency (Hz)")
@@ -265,11 +327,11 @@ def plot_mag_phase_error(
         cmap="seismic",
         shading="auto",
     )
-    # plt.yscale("log")
+    plt.yscale("log")
     ax = plt.gca()
     ax.yaxis.set_major_formatter(ScalarFormatter())
     ax.yaxis.get_major_formatter().set_scientific(False)
-    plt.colorbar(label="Phase error (radians)")
+    plt.colorbar(label="Phase error (radians)", extend="both")
     plt.title(f"{method_name} phase error, spacing {angle_spacing}°")
     plt.xlabel("Angle (degrees)")
     plt.ylabel("Frequency (Hz)")
@@ -286,12 +348,10 @@ def plot_mag_phase_error(
 
 def main():
     # Import dataset
-    ir_data = np.load(config["dataset_path"])
-    irs = ir_data["irs"]
-    angles = ir_data["angles"]
-    fs = ir_data["fs"].item()
-
-    del ir_data
+    if config["dataset_path"].endswith(".npz"):
+        irs, angles, fs = load_npz_dataset(config["dataset_path"])
+    elif config["dataset_path"].endswith(".sofa"):
+        irs, angles, fs = load_sofa_dataset(config["dataset_path"])
 
     results = pd.DataFrame(
         columns=[
@@ -437,7 +497,7 @@ def main():
         )
 
         # Plot results with regularization for low values
-        reg_lin = 10 ** (config["plot_sm_lower_limit"] / 20)
+        reg_lin = 10 ** (config["plot_sm_limits"][0] / 20)
         sm_dtw_tmp[sm_dtw_tmp < reg_lin] = reg_lin
         sm_nn_tmp[sm_nn_tmp < reg_lin] = reg_lin
         sm_linear_tmp[sm_linear_tmp < reg_lin] = reg_lin
@@ -462,7 +522,8 @@ def main():
         plt.plot(angles, sm_linear_db, label="Linear interpolation")
         plt.plot(angles, sm_nn_db, label="Nearest neighbor")
         plt.xlabel("Angle (degrees)")
-        plt.ylabel("System mismatch")
+        plt.ylabel("System mismatch (dB)")
+        plt.ylim(config["plot_sm_limits"])
         plt.title(f"System mismatch of interpolated IRs, spacing {angle_spacing}°")
         plt.legend()
         plt.grid()
