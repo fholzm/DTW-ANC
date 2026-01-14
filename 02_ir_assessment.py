@@ -25,7 +25,7 @@ config = {
     "stepPattern": dtw.symmetricP2,  # DTW step pattern
     # "stepPattern": dtw.rabinerJuangStepPattern(6, "c"),
     "plot_sm_limits": [-40, 8],  # dB
-    "plot_mag_limits": [-20, 0],  # dB
+    "plot_mag_limits": [-30, 0],  # dB
     "plot_nfft": 512,
     "export_figures": True,
     "export_results": True,
@@ -76,7 +76,7 @@ def load_sofa_dataset(file_path: str) -> tuple[np.ndarray, np.ndarray, float]:
     """
     sofa_data = sf.read_sofa(file_path, "r")
     irs = sofa_data.Data_IR
-    angles = 360.0 - sofa_data.SourcePosition[:, 0]  # Convert to intrinsic rotation
+    angles = 360 - sofa_data.SourcePosition[:, 0]  # Convert to intrinsic rotation
     fs = sofa_data.Data_SamplingRate
 
     # Sort by angle
@@ -85,9 +85,9 @@ def load_sofa_dataset(file_path: str) -> tuple[np.ndarray, np.ndarray, float]:
     angles = np.round(angles[sort_indices]).astype(int)
 
     # Duplicate 360° to 0°
-    if angles[0] != 0.0:
+    if angles[0] != 0:
         irs = np.concatenate((irs[[-1]], irs), axis=0)
-        angles = np.concatenate((np.array([0.0]), angles), axis=0)
+        angles = np.concatenate((np.array([0]), angles), axis=0)
 
     return irs, angles, fs
 
@@ -353,6 +353,28 @@ def main():
     elif config["dataset_path"].endswith(".sofa"):
         irs, angles, fs = load_sofa_dataset(config["dataset_path"])
 
+    # Plot IR dataset
+    hrir_to_plot = np.abs(irs[:, 0, config["ir_range"]])
+    hrir_to_plot /= np.max(hrir_to_plot)
+    plt.figure()
+    plt.pcolormesh(
+        angles,
+        np.arange(config["ir_range"].start, config["ir_range"].stop),
+        20 * np.log10(hrir_to_plot.T + 1e-12),
+        shading="auto",
+        cmap="Greys",
+        vmin=-60,
+        vmax=0,
+    )
+    plt.colorbar(label="Magnitude (dB)")
+    plt.title("IR dataset")
+    plt.xlabel("Angle (degrees)")
+    plt.ylabel("Samples")
+
+    if config["export_figures"]:
+        ds_name = config["dataset_path"].split("/")[-1].split(".")[0]
+        plt.savefig(f"figures/ir_{ds_name}.png", dpi=300)
+
     results = pd.DataFrame(
         columns=[
             "method",
@@ -440,21 +462,36 @@ def main():
                     mag_error_dtw[ii * angle_spacing + jj],
                     phase_error_dtw[ii * angle_spacing + jj],
                 ) = metrics.mag_phase_error(
-                    ir_target, ir_interpolated_dtw, nFFT=512, fs=fs, dB=False
+                    ir_target,
+                    ir_interpolated_dtw,
+                    nFFT=512,
+                    fs=fs,
+                    dB=False,
+                    discont=1.5 * np.pi,
                 )
                 (
                     _,
                     mag_error_nn[ii * angle_spacing + jj],
                     phase_error_nn[ii * angle_spacing + jj],
                 ) = metrics.mag_phase_error(
-                    ir_target, ir_interpolated_nn, nFFT=512, fs=fs, dB=False
+                    ir_target,
+                    ir_interpolated_nn,
+                    nFFT=512,
+                    fs=fs,
+                    dB=False,
+                    discont=1.5 * np.pi,
                 )
                 (
                     _,
                     mag_error_linear[ii * angle_spacing + jj],
                     phase_error_linear[ii * angle_spacing + jj],
                 ) = metrics.mag_phase_error(
-                    ir_target, ir_inteprolated_linear, nFFT=512, fs=fs, dB=False
+                    ir_target,
+                    ir_inteprolated_linear,
+                    nFFT=512,
+                    fs=fs,
+                    dB=False,
+                    discont=1.5 * np.pi,
                 )
 
         # Extract system mismatch per quadrant

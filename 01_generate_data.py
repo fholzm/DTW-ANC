@@ -10,7 +10,7 @@ from lxml import objectify, etree
 sec_src_coords = [0.25, 0.0, 0.0]
 sec_src_gain = -20.0
 angles_to_test = np.arange(0, 361, 1, dtype=float)
-fs = 44100
+fs = 48000
 ir_length = 512
 n_jobs = 8
 
@@ -44,8 +44,8 @@ def generate_tascar_project(rotation: float = 0.0) -> str:
         name="hrtf_receiver",
         type="hrtf",
         nf_filter="true",
-        sincorder="64",
-        prewarpingmode="2",
+        # sincorder="64",
+        # prewarpingmode="2",
     )
     orient = objectify.SubElement(rec, "orientation")._setText(f"0 {rotation} 0 0")
 
