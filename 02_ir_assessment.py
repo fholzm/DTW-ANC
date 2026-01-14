@@ -245,7 +245,7 @@ def plot_mag_phase_error(
         vmin=config["plot_mag_lower_limit"],
         shading="auto",
     )
-    plt.yscale("log")
+    # plt.yscale("log")
     ax = plt.gca()
     ax.yaxis.set_major_formatter(ScalarFormatter())
     ax.yaxis.get_major_formatter().set_scientific(False)
@@ -265,7 +265,7 @@ def plot_mag_phase_error(
         cmap="seismic",
         shading="auto",
     )
-    plt.yscale("log")
+    # plt.yscale("log")
     ax = plt.gca()
     ax.yaxis.set_major_formatter(ScalarFormatter())
     ax.yaxis.get_major_formatter().set_scientific(False)
@@ -329,22 +329,30 @@ def main():
             ir_pos0 = ir_refs[ii]
             ir_pos1 = ir_refs[ii + 1]
 
-            ir_pos1_warped, displacement = calculate_dtw(
+            ir_pos0_warped, displacement_pos0 = calculate_dtw(
+                ir_pos0, ir_pos1, config["stepPattern"]
+            )
+            ir_pos1_warped, displacement_pos1 = calculate_dtw(
                 ir_pos1, ir_pos0, config["stepPattern"]
             )
 
             # Inner loop - interpolate to all positions in between
             for jj in range(1, angle_spacing):
                 alpha = 1 - jj / angle_spacing
-                ir_interpolated_dtw = inteprolate_ir(
-                    ir_pos0,
-                    ir_pos1_warped,
-                    displacement,
-                    alpha,
-                    # ir_pos1=ir_pos1,
-                    # crossover_f=150,
-                    # crossover_order=4,
-                    # fs=fs,
+                ir_interpolated_dtw = (
+                    inteprolate_ir(
+                        ir_pos0,
+                        ir_pos1_warped,
+                        displacement_pos1,
+                        alpha,
+                    )
+                    if alpha >= 0.5
+                    else inteprolate_ir(
+                        ir_pos1,
+                        ir_pos0_warped,
+                        displacement_pos0,
+                        1 - alpha,
+                    )
                 )
 
                 ir_interpolated_nn = ir_pos0 if alpha >= 0.5 else ir_pos1
