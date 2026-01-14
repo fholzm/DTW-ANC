@@ -132,13 +132,12 @@ def calculate_dtw(
 
 def inteprolate_ir(
     ir_pos0: np.ndarray,
+    ir_pos1: np.ndarray,
+    ir_pos0_warped: np.ndarray,
     ir_pos1_warped: np.ndarray,
-    displacement: np.ndarray,
+    displacement_pos0: np.ndarray,
+    displacement_pos1: np.ndarray,
     alpha: float,
-    ir_pos1: Optional[np.ndarray] = None,
-    crossover_f: Optional[float] = None,
-    crossover_order: int = 6,
-    fs: Optional[float] = None,
 ) -> np.ndarray:
     """Interpolate between two impulse responses using DTW-based warping
 
@@ -146,77 +145,39 @@ def inteprolate_ir(
     ----------
     ir_pos0 : np.ndarray
         Impulse response at position 0
+    ir_pos1 : np.ndarray
+        Impulse response at position 1
+    ir_pos0_warped : np.ndarray
+        Warped impulse response at position 0
     ir_pos1_warped : np.ndarray
         Warped impulse response at position 1
-    displacement : np.ndarray
-        Displacement vector used for warping
+    displacement_pos0 : np.ndarray
+        Displacement vector used for warping at position 0
+    displacement_pos1 : np.ndarray
+        Displacement vector used for warping at position 1
     alpha : float
         Interpolation factor (0 = position 1, 1 = position 0)
-    ir_pos1 : Optional[np.ndarray]
-        Impulse response at position 1 without warping, used only if frequency_cutoff is set
-    crossover_f : Optional[float]
-        Crossover frequency for multiband interpolation
-    crossover_order : int
-        Crossover filter order
-    fs : Optional[float]
-        Sampling frequency, used only if frequency_cutoff is set
-
     Returns
     -------
     ir_interpolated : np.ndarray
         Interpolated impulse response
     """
 
-    # Split high and low frequency content if frequency cutoff is set
-    if crossover_f is not None and fs is not None and ir_pos1 is not None:
-        multiband = True
-    else:
-        multiband = False
-
-    if multiband:
-        _crossover_order = crossover_order // 2
-
-        sos_lp = signal.butter(
-            _crossover_order,
-            crossover_f,
-            btype="low",
-            output="sos",
-            fs=fs,
-            analog=False,
-        )
-        sos_hp = signal.butter(
-            _crossover_order,
-            crossover_f,
-            btype="high",
-            output="sos",
-            fs=fs,
-            analog=False,
-        )
-
-        ir0_low = signal.sosfiltfilt(sos_lp, ir_pos0)
-        ir1_low = signal.sosfiltfilt(sos_lp, ir_pos1)
-
-        ir_low_interpolated = alpha * ir0_low + (1 - alpha) * ir1_low
-
-        ir0_high = signal.sosfiltfilt(sos_hp, ir_pos0)
-        ir1_high = signal.sosfiltfilt(sos_hp, ir_pos1_warped)
-
-    else:
-        ir0_high = ir_pos0
-        ir1_high = ir_pos1_warped
-
     # Linear interpolation of warped IRs
-    ir_interpolated_warped = alpha * ir0_high + (1 - alpha) * ir1_high
+    if alpha >= 0.5:
+        ir_interpolated_warped = alpha * ir_pos0 + (1 - alpha) * ir_pos1_warped
 
-    # Find updated indices for de-warping
-    idx_dewarping = np.arange(len(ir0_high)) - displacement * (1 - alpha)
+        # Find updated indices for de-warping
+        idx_dewarping = np.arange(len(ir_pos0)) - displacement_pos1 * (1 - alpha)
+    else:
+        ir_interpolated_warped = alpha * ir_pos0_warped + (1 - alpha) * ir_pos1
+
+        # Find updated indices for de-warping
+        idx_dewarping = np.arange(len(ir_pos0)) - displacement_pos0 * (alpha)
 
     # Apply spline interpolation to get samples at integer-indices
     cs = CubicSpline(idx_dewarping, ir_interpolated_warped)
     ir_interpolated = cs(np.arange(len(ir_interpolated_warped)))
-
-    if multiband:
-        ir_interpolated = ir_interpolated + ir_low_interpolated
 
     return ir_interpolated
 
@@ -421,20 +382,14 @@ def main():
             # Inner loop - interpolate to all positions in between
             for jj in range(1, angle_spacing):
                 alpha = 1 - jj / angle_spacing
-                ir_interpolated_dtw = (
-                    inteprolate_ir(
-                        ir_pos0,
-                        ir_pos1_warped,
-                        displacement_pos1,
-                        alpha,
-                    )
-                    if alpha >= 0.5
-                    else inteprolate_ir(
-                        ir_pos1,
-                        ir_pos0_warped,
-                        displacement_pos0,
-                        1 - alpha,
-                    )
+                ir_interpolated_dtw = inteprolate_ir(
+                    ir_pos0,
+                    ir_pos1,
+                    ir_pos0_warped,
+                    ir_pos1_warped,
+                    displacement_pos0,
+                    displacement_pos1,
+                    alpha,
                 )
 
                 ir_interpolated_nn = ir_pos0 if alpha >= 0.5 else ir_pos1
