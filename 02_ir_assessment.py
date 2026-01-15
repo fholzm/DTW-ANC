@@ -182,6 +182,8 @@ def select_step_pattern(step_pattern_name: str) -> dtw.StepPattern:
     else:
         raise ValueError(f"Unknown step pattern: {step_pattern_name}")
 
+    # TODO: Add Rabiner-Juang patterns
+
     return step_pattern
 
 
@@ -412,7 +414,7 @@ def plot_mag_phase_error(
     ax.yaxis.get_major_formatter().set_scientific(False)
     plt.colorbar(label="Magnitude error (dB)", extend="both")
     plt.title("Magnitude Error")
-    plt.xlabel("Angle (degrees)")
+    plt.xlabel("Source angle (degrees)")
     plt.ylabel("Frequency (Hz)")
     plt.ylim(10, fs / 2)
 
@@ -420,9 +422,9 @@ def plot_mag_phase_error(
     plt.pcolormesh(
         angles,
         freq,
-        phase_error.T,
-        vmin=-np.pi / 2,
-        vmax=np.pi / 2,
+        np.rad2deg(phase_error.T),
+        vmin=-90,
+        vmax=90,
         cmap="seismic",
         shading="auto",
     )
@@ -430,9 +432,11 @@ def plot_mag_phase_error(
     ax = plt.gca()
     ax.yaxis.set_major_formatter(ScalarFormatter())
     ax.yaxis.get_major_formatter().set_scientific(False)
-    plt.colorbar(label="Phase error (radians)", extend="both")
+    cbar = plt.colorbar(label="Phase error (degrees)", extend="both")
+    cbar.set_ticks([-90, 0, 90])
+    cbar.set_ticklabels(["-90°", "0°", "90°"])
     plt.title("Phase Error")
-    plt.xlabel("Angle (degrees)")
+    plt.xlabel("Source angle (degrees)")
     plt.ylabel("Frequency (Hz)")
     plt.ylim(10, fs / 2)
     plt.tight_layout()
@@ -626,11 +630,10 @@ def main():
     #         dpi=300,
     #     )
 
-    # if config["export_results"]:
-    #     results.to_csv(
-    #         "results/system_mismatch_results.csv", index=False, float_format="%.2f"
-    #     )
-    #     results.to_pickle("results/system_mismatch_results.pkl")
+    if config["export_results"] and results is not None:
+        fn = config["fn_result_dir"] + f"{config['fn_output_prefix']}results"
+        results.to_csv(fn + ".csv", index=False, float_format="%.2f")
+        results.to_pickle(fn + ".pkl")
 
     print(results)
     # plt.show()
