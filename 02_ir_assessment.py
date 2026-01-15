@@ -9,21 +9,47 @@ from utils import metrics
 import pandas as pd
 
 # global variables
+# config = {
+#     "fn_output_prefix": "eval_spacing_",
+#     "fn_result_dir": "results/",
+#     "fn_figure_dir": "figures/",
+#     "dataset_path": "data/THK_NF/HRIR_CIRC360_NF025.sofa",
+#     "angle_spacings": [
+#         5,
+#         10,
+#         15,
+#         20,
+#         30,
+#         45,
+#     ],  # spacing of the reference points, degrees
+#     "interpolation_methods": ["direct", "nn", "dtw"],  # Methods to test
+#     "step_patterns": ["symmetricP2"],  # Allowed step patterns for DTW
+#     "ir_ds_factor": 6,  # downsampling factor for IRs
+#     "ir_range": range(0, 32),  # taps of the IR to consider in analysis
+#     "plot_sm_limits": [-40, 8],  # dB
+#     "plot_mag_limits": [-30, 0],  # dB
+#     "plot_nfft": 512,
+#     "export_figures": True,
+#     "export_results": True,
+# }
+
 config = {
-    "fn_output_prefix": "eval_spacing_",
+    "fn_output_prefix": "eval_steppattern_",
     "fn_result_dir": "results/",
     "fn_figure_dir": "figures/",
     "dataset_path": "data/THK_NF/HRIR_CIRC360_NF025.sofa",
     "angle_spacings": [
-        5,
-        10,
-        15,
         20,
-        30,
-        45,
     ],  # spacing of the reference points, degrees
     "interpolation_methods": ["direct", "nn", "dtw"],  # Methods to test
-    "step_patterns": ["symmetricP2"],  # Allowed step patterns for DTW
+    "step_patterns": [
+        "symmetric1",
+        "symmetric2",
+        "symmetricP0",
+        "symmetricP05",
+        "symmetricP1",
+        "symmetricP2",
+    ],  # Allowed step patterns for DTW
     "ir_ds_factor": 6,  # downsampling factor for IRs
     "ir_range": range(0, 32),  # taps of the IR to consider in analysis
     "plot_sm_limits": [-40, 8],  # dB
@@ -32,26 +58,6 @@ config = {
     "export_figures": True,
     "export_results": True,
 }
-
-# config = {
-#     "fn_output_prefix": "eval_steppattern_",
-#     "fn_output_dir": "results/",
-#     "dataset_path": "data/THK_NF/HRIR_CIRC360_NF025.sofa",
-#     "angle_spacings": [
-#         30,
-#     ],  # spacing of the reference points, degrees
-#     "interpolation_methods": ["direct", "nn", "dtw"],  # Methods to test
-#     "step_patterns": [],  # Allowed step patterns for DTW
-#     "ir_ds_factor": 6,  # downsampling factor for IRs
-#     "ir_range": range(0, 32),  # taps of the IR to consider in analysis
-#     # "stepPattern": dtw.symmetricP2,  # DTW step pattern
-#     "stepPattern": dtw.rabinerJuangStepPattern(6, "c"),
-#     "plot_sm_limits": [-40, 8],  # dB
-#     "plot_mag_limits": [-30, 0],  # dB
-#     "plot_nfft": 512,
-#     "export_figures": True,
-#     "export_results": True,
-# }
 
 
 def load_npz_dataset(file_path: str) -> tuple[np.ndarray, np.ndarray, float]:
@@ -572,7 +578,7 @@ def main():
                     )
 
                 # Plot results for magnitude/phase error
-                if method == "dtw":
+                if method == "dtw" and len(config["step_patterns"]) > 1:
                     fn = (
                         config["fn_figure_dir"]
                         + f"fd_error_{method}_steppattern_{step_pattern_str}_spacing_{angle_spacing}deg.png"
@@ -591,44 +597,103 @@ def main():
                     fn,
                 )
 
-    # # TODO: Fix plot
-    # # Plot results with regularization for low values
-    # reg_lin = 10 ** (config["plot_sm_limits"][0] / 20)
-    # sm_tmp[sm_tmp < reg_lin] = reg_lin
-    # sm_nn_tmp[sm_nn_tmp < reg_lin] = reg_lin
-    # sm_linear_tmp[sm_linear_tmp < reg_lin] = reg_lin
+    # Plot system mismatch
+    reg_smplot = 10 ** (config["plot_sm_limits"][0] / 20)
+    if len(config["angle_spacings"]) > 1 and results is not None:
+        for angle_spacing in config["angle_spacings"]:
+            # Find all entry indices with the given angle spacing
+            idx_dir = np.where(
+                (results["spacing"].to_numpy() == angle_spacing)
+                & (results["method"].to_numpy() == "direct")
+            )[0][0]
 
-    # sm_dtw_db = 20 * np.log10(sm_tmp)
-    # sm_nn_db = 20 * np.log10(sm_nn_tmp)
-    # sm_linear_db = 20 * np.log10(sm_linear_tmp)
+            idx_nn = np.where(
+                (results["spacing"].to_numpy() == angle_spacing)
+                & (results["method"].to_numpy() == "nn")
+            )[0][0]
 
-    # # Calculate mean/median on all positions that are interpolated
-    # interp_mask = np.ones_like(angles, dtype=bool)
-    # interp_mask[ref_indices] = False
+            idx_dtw = np.where(
+                (results["spacing"].to_numpy() == angle_spacing)
+                & (results["method"].to_numpy() == "dtw")
+            )[0][0]
 
-    # print(f"System mismatch for angle spacing {angle_spacing}°:")
-    # print(f"DTW: Median: {sm_tmp_overall} dB")
-    # print(f"Linear: Median: {sm_linear_overall} dB")
-    # print(f"Nearest neighbor: Median: {sm_nn_overall} dB")
-    # print("----------")
+            # Extract corresponding system mismatch arrays
+            sm_dir = sm_all[idx_dir]
+            sm_nn = sm_all[idx_nn]
+            sm_dtw = sm_all[idx_dtw]
 
-    # # Plot results for system mismatch
-    # plt.figure()
-    # plt.plot(angles, sm_dtw_db, label="DTW-based interpolation")
-    # plt.plot(angles, sm_linear_db, label="Linear interpolation")
-    # plt.plot(angles, sm_nn_db, label="Nearest neighbor")
-    # plt.xlabel("Angle (degrees)")
-    # plt.ylabel("System mismatch (dB)")
-    # plt.ylim(config["plot_sm_limits"])
-    # plt.title(f"System mismatch of interpolated IRs, spacing {angle_spacing}°")
-    # plt.legend()
-    # plt.grid()
+            # Apply regularization for low values
+            sm_dir[sm_dir < reg_smplot] = reg_smplot
+            sm_nn[sm_nn < reg_smplot] = reg_smplot
+            sm_dtw[sm_dtw < reg_smplot] = reg_smplot
 
-    # if config["export_figures"]:
-    #     plt.savefig(
-    #         f"figures/system_mismatch_spacing_{angle_spacing}deg.png",
-    #         dpi=300,
-    #     )
+            # Convert to dB
+            sm_dir = 20 * np.log10(sm_dir)
+            sm_nn = 20 * np.log10(sm_nn)
+            sm_dtw = 20 * np.log10(sm_dtw)
+
+            # Plot results for system mismatch
+            plt.figure()
+
+            plt.plot(angles, sm_nn, label="NN")
+            plt.plot(angles, sm_dir, label="Direct")
+            plt.plot(angles, sm_dtw, label="DTW")
+            plt.xlabel("Source angle (degrees)")
+            plt.ylabel("System mismatch (dB)")
+            plt.ylim(config["plot_sm_limits"])
+            plt.title(f"System mismatch of interpolated IRs, spacing {angle_spacing}°")
+            plt.legend()
+            plt.grid()
+
+            if config["export_figures"]:
+                fn = (
+                    config["fn_figure_dir"]
+                    + f"system_mismatch_spacing_{angle_spacing}deg.png"
+                )
+                plt.savefig(
+                    fn,
+                    dpi=300,
+                )
+
+    if len(config["step_patterns"]) > 1 and results is not None:
+        idx_dtw = np.where(results["method"].to_numpy() == "dtw")[0]
+
+        plt.figure()
+        for idx in idx_dtw:
+            step_pattern_str = results["step_pattern"].to_numpy()[idx]
+            angle_spacing = results["spacing"].to_numpy()[idx]
+
+            # Extract corresponding system mismatch arrays
+            sm_dtw = sm_all[idx]
+
+            # Apply regularization for low values
+            sm_dtw[sm_dtw < reg_smplot] = reg_smplot
+
+            # Convert to dB
+            sm_dtw = 20 * np.log10(sm_dtw)
+
+            # Plot results for system mismatch
+            plt.plot(
+                angles,
+                sm_dtw,
+                label=f"DTW ({step_pattern_str})",
+            )
+        plt.xlabel("Source angle (degrees)")
+        plt.ylabel("System mismatch (dB)")
+        plt.ylim(config["plot_sm_limits"])
+        plt.title(f"System mismatch of interpolated IRs - DTW step patterns")
+        plt.legend()
+        plt.grid()
+
+        if config["export_figures"]:
+            fn = (
+                config["fn_figure_dir"]
+                + f"system_mismatch_dtw_steppatterns_spacing_{config['angle_spacings'][0]}.png"
+            )
+            plt.savefig(
+                fn,
+                dpi=300,
+            )
 
     if config["export_results"] and results is not None:
         fn = config["fn_result_dir"] + f"{config['fn_output_prefix']}results"
