@@ -7,11 +7,12 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import ScalarFormatter
 from utils import metrics
 import pandas as pd
-from typing import Optional
 
 # global variables
 config = {
-    # "dataset_path": "data/TASCAR_IRs/measured_irs.npz",
+    "fn_output_prefix": "eval_spacing_",
+    "fn_result_dir": "results/",
+    "fn_figure_dir": "figures/",
     "dataset_path": "data/THK_NF/HRIR_CIRC360_NF025.sofa",
     "angle_spacings": [
         5,
@@ -21,16 +22,36 @@ config = {
         30,
         45,
     ],  # spacing of the reference points, degrees
+    "interpolation_methods": ["direct", "nn", "dtw"],  # Methods to test
+    "step_patterns": ["symmetricP2"],  # Allowed step patterns for DTW
     "ir_ds_factor": 6,  # downsampling factor for IRs
     "ir_range": range(0, 32),  # taps of the IR to consider in analysis
-    "stepPattern": dtw.symmetricP2,  # DTW step pattern
-    # "stepPattern": dtw.rabinerJuangStepPattern(6, "c"),
     "plot_sm_limits": [-40, 8],  # dB
     "plot_mag_limits": [-30, 0],  # dB
     "plot_nfft": 512,
     "export_figures": True,
     "export_results": True,
 }
+
+# config = {
+#     "fn_output_prefix": "eval_steppattern_",
+#     "fn_output_dir": "results/",
+#     "dataset_path": "data/THK_NF/HRIR_CIRC360_NF025.sofa",
+#     "angle_spacings": [
+#         30,
+#     ],  # spacing of the reference points, degrees
+#     "interpolation_methods": ["direct", "nn", "dtw"],  # Methods to test
+#     "step_patterns": [],  # Allowed step patterns for DTW
+#     "ir_ds_factor": 6,  # downsampling factor for IRs
+#     "ir_range": range(0, 32),  # taps of the IR to consider in analysis
+#     # "stepPattern": dtw.symmetricP2,  # DTW step pattern
+#     "stepPattern": dtw.rabinerJuangStepPattern(6, "c"),
+#     "plot_sm_limits": [-40, 8],  # dB
+#     "plot_mag_limits": [-30, 0],  # dB
+#     "plot_nfft": 512,
+#     "export_figures": True,
+#     "export_results": True,
+# }
 
 
 def load_npz_dataset(file_path: str) -> tuple[np.ndarray, np.ndarray, float]:
@@ -133,6 +154,37 @@ def load_sofa_dataset(config: dict) -> tuple[np.ndarray, np.ndarray, float]:
     return irs, angles, fs
 
 
+def select_step_pattern(step_pattern_name: str) -> dtw.StepPattern:
+    """Select DTW step pattern based on name
+
+    Parameters
+    ----------
+    step_pattern_name : str
+        Name of the step pattern as defined in the dtw package
+    Returns
+    -------
+    step_pattern : dtw.StepPattern
+        Selected step pattern
+    """
+
+    if step_pattern_name == "symmetric1":
+        step_pattern = dtw.symmetric1
+    elif step_pattern_name == "symmetric2":
+        step_pattern = dtw.symmetric2
+    elif step_pattern_name == "symmetricP0":
+        step_pattern = dtw.symmetricP0
+    elif step_pattern_name == "symmetricP05":
+        step_pattern = dtw.symmetricP05
+    elif step_pattern_name == "symmetricP1":
+        step_pattern = dtw.symmetricP1
+    elif step_pattern_name == "symmetricP2":
+        step_pattern = dtw.symmetricP2
+    else:
+        raise ValueError(f"Unknown step pattern: {step_pattern_name}")
+
+    return step_pattern
+
+
 def calculate_dtw(
     ir_query: np.ndarray, ir_reference: np.ndarray, stepPattern: dtw.StepPattern
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -171,7 +223,7 @@ def calculate_dtw(
     return ir_query_warped, displacement
 
 
-def inteprolate_ir(
+def interpolate_ir_dtw(
     ir_pos0: np.ndarray,
     ir_pos1: np.ndarray,
     ir_pos0_warped: np.ndarray,
@@ -223,14 +275,34 @@ def inteprolate_ir(
     return ir_interpolated
 
 
-def inteprolate_ir_v2(
-    ir_pos0: np.ndarray,
-    ir_pos1: np.ndarray,
-    displacement_pos0: np.ndarray,
-    displacement_pos1: np.ndarray,
-    alpha: float,
-):
-    """Interpolate between two impulse responses using DTW-based warping, based on warping both IRs
+def interpolate_ir_direct(
+    ir_pos0: np.ndarray, ir_pos1: np.ndarray, alpha: float
+) -> np.ndarray:
+    """Interpolate between two impulse responses using direct linear interpolation
+    Parameters
+
+    ----------
+    ir_pos0 : np.ndarray
+        Impulse response at position 0
+    ir_pos1 : np.ndarray
+        Impulse response at position 1
+    alpha : float
+        Interpolation factor (0 = position 1, 1 = position 0)
+
+    Returns
+    -------
+    ir_interpolated : np.ndarray
+        Interpolated impulse response
+    """
+
+    ir_interpolated = alpha * ir_pos0 + (1 - alpha) * ir_pos1
+    return ir_interpolated
+
+
+def interpolate_ir_nn(
+    ir_pos0: np.ndarray, ir_pos1: np.ndarray, alpha: float
+) -> np.ndarray:
+    """Interpolate between two impulse responses using nearest neighbor interpolation
 
     Parameters
     ----------
@@ -238,36 +310,23 @@ def inteprolate_ir_v2(
         Impulse response at position 0
     ir_pos1 : np.ndarray
         Impulse response at position 1
-    displacement_pos0 : np.ndarray
-        Displacement vector used for warping at position 0
-    displacement_pos1 : np.ndarray
-        Displacement vector used for warping at position 1
     alpha : float
         Interpolation factor (0 = position 1, 1 = position 0)
+
     Returns
     -------
     ir_interpolated : np.ndarray
         Interpolated impulse response
     """
 
-    cs_pos0 = CubicSpline(np.arange(len(ir_pos0)), ir_pos0)
-    cs_pos1 = CubicSpline(np.arange(len(ir_pos1)), ir_pos1)
-
-    idx_warping_pos0 = np.arange(len(ir_pos0)) - displacement_pos0 * (1 - alpha)
-    idx_warping_pos1 = np.arange(len(ir_pos1)) - displacement_pos1 * (alpha)
-
-    ir_pos0_warped = cs_pos0(idx_warping_pos0)
-    ir_pos1_warped = cs_pos1(idx_warping_pos1)
-
-    ir_interpolated = alpha * ir_pos0_warped + (1 - alpha) * ir_pos1_warped
-
+    ir_interpolated = ir_pos0 if alpha >= 0.5 else ir_pos1
     return ir_interpolated
 
 
 def extract_median_error_per_quadrant(
     sm_values: np.ndarray, angles: np.ndarray, angle_spacing: int, in_db: bool = False
 ) -> tuple[float, float, float, float, float]:
-    """Calculate the median system mismatch per quadrant on all inteprolated positions
+    """Calculate the median system mismatch per quadrant on all interpolated positions
 
     Parameters
     ----------
@@ -315,9 +374,8 @@ def plot_mag_phase_error(
     mag_error: np.ndarray,
     phase_error: np.ndarray,
     fs: float,
-    angle_spacing: int,
-    method_name: str,
-    export_figures: bool = False,
+    export_figure: bool = False,
+    export_figure_fn: str = "",
 ) -> None:
     """Plot magnitude and phase error for interpolated IRs
 
@@ -331,12 +389,10 @@ def plot_mag_phase_error(
         Phase error matrix (angles x frequencies)
     fs : float
         Sampling frequency
-    angle_spacing : int
-        Angle spacing used
-    method_name : str
-        Name of the interpolation method
-    export_figures : bool
+    export_figure : bool
         Whether to export the figure
+    export_figure_fn : str
+        Filename for exporting the figure
     """
     freq = np.linspace(0, fs / 2, config["plot_nfft"] // 2 + 1)
 
@@ -355,7 +411,7 @@ def plot_mag_phase_error(
     ax.yaxis.set_major_formatter(ScalarFormatter())
     ax.yaxis.get_major_formatter().set_scientific(False)
     plt.colorbar(label="Magnitude error (dB)", extend="both")
-    plt.title(f"{method_name} magnitude error, spacing {angle_spacing}°")
+    plt.title("Magnitude Error")
     plt.xlabel("Angle (degrees)")
     plt.ylabel("Frequency (Hz)")
     plt.ylim(10, fs / 2)
@@ -375,16 +431,15 @@ def plot_mag_phase_error(
     ax.yaxis.set_major_formatter(ScalarFormatter())
     ax.yaxis.get_major_formatter().set_scientific(False)
     plt.colorbar(label="Phase error (radians)", extend="both")
-    plt.title(f"{method_name} phase error, spacing {angle_spacing}°")
+    plt.title("Phase Error")
     plt.xlabel("Angle (degrees)")
     plt.ylabel("Frequency (Hz)")
     plt.ylim(10, fs / 2)
     plt.tight_layout()
 
-    if export_figures:
-        method_slug = method_name.lower().replace(" ", "_").replace("-", "_")
+    if export_figure and export_figure_fn != "":
         plt.savefig(
-            f"figures/mag_phase_error_{method_slug}_spacing_{angle_spacing}deg.png",
+            export_figure_fn,
             dpi=300,
         )
 
@@ -396,231 +451,189 @@ def main():
     elif config["dataset_path"].endswith(".sofa"):
         irs, angles, fs = load_sofa_dataset(config)
 
-    results = pd.DataFrame(
-        columns=[
-            "method",
-            "spacing",
-            "sm_overall",
-            "sm_front",
-            "sm_back",
-            "sm_clat",
-            "sm_ilat",
-        ]
-    )
+    results = None
 
-    for angle_spacing in config["angle_spacings"]:
-        # Select reference positions based on angle spacing
-        ref_indices = np.where(angles % angle_spacing == 0)[0]
-        ref_irs = np.squeeze(
-            irs[ref_indices, 0]
-        )  # Symmetric setup --> use one side only
+    sm_all = []
 
-        sm_dtw_tmp = np.zeros_like(angles, dtype=float)
-        sm_nn_tmp = np.zeros_like(angles, dtype=float)
-        sm_linear_tmp = np.zeros_like(angles, dtype=float)
+    for method in config["interpolation_methods"]:
+        step_patterns_to_use = config["step_patterns"] if method == "dtw" else [None]
+        for step_pattern_str in step_patterns_to_use:
+            for angle_spacing in config["angle_spacings"]:
+                # Select reference positions based on angle spacing
+                ref_indices = np.where(angles % angle_spacing == 0)[0]
+                ref_irs = np.squeeze(
+                    irs[ref_indices, 0]
+                )  # Symmetric setup --> use one side only
 
-        mag_error_dtw = np.zeros((len(angles), config["plot_nfft"] // 2 + 1))
-        phase_error_dtw = np.zeros((len(angles), config["plot_nfft"] // 2 + 1))
-        mag_error_nn = np.zeros((len(angles), config["plot_nfft"] // 2 + 1))
-        phase_error_nn = np.zeros((len(angles), config["plot_nfft"] // 2 + 1))
-        mag_error_linear = np.zeros((len(angles), config["plot_nfft"] // 2 + 1))
-        phase_error_linear = np.zeros((len(angles), config["plot_nfft"] // 2 + 1))
+                # Select desired step pattern for dtw
+                if method == "dtw":
+                    step_pattern = select_step_pattern(step_pattern_str)
 
-        # Outer loop - iterate over all fixed positions
-        for ii in range(len(ref_indices) - 1):
-            ir_pos0 = ir_refs[ii]
-            ir_pos1 = ir_refs[ii + 1]
+                # Initialize temporary variables to store results
+                sm_tmp = np.zeros_like(angles, dtype=float)
+                mag_error_tmp = np.zeros((len(angles), config["plot_nfft"] // 2 + 1))
+                phase_error_tmp = np.zeros((len(angles), config["plot_nfft"] // 2 + 1))
 
-            ir_pos0_warped, displacement_pos0 = calculate_dtw(
-                ir_pos0, ir_pos1, config["stepPattern"]
-            )
-            ir_pos1_warped, displacement_pos1 = calculate_dtw(
-                ir_pos1, ir_pos0, config["stepPattern"]
-            )
+                # Outer loop - iterate over all fixed positions
+                for ii in range(len(ref_indices) - 1):
+                    ir_pos0 = ref_irs[ii]
+                    ir_pos1 = ref_irs[ii + 1]
 
-            # Inner loop - interpolate to all positions in between
-            for jj in range(1, angle_spacing):
-                alpha = 1 - jj / angle_spacing
-                ir_interpolated_dtw = inteprolate_ir(
-                    ir_pos0,
-                    ir_pos1,
-                    ir_pos0_warped,
-                    ir_pos1_warped,
-                    displacement_pos0,
-                    displacement_pos1,
-                    alpha,
+                    if method == "dtw":
+                        ir_pos0_warped, displacement_pos0 = calculate_dtw(
+                            ir_pos0, ir_pos1, step_pattern
+                        )
+                        ir_pos1_warped, displacement_pos1 = calculate_dtw(
+                            ir_pos1, ir_pos0, step_pattern
+                        )
+
+                    # Inner loop - interpolate to all positions in between
+                    for jj in range(1, angle_spacing):
+                        alpha = 1 - jj / angle_spacing
+
+                        if method == "direct":
+                            ir_interpolated = interpolate_ir_direct(
+                                ir_pos0, ir_pos1, alpha
+                            )
+                        elif method == "nn":
+                            ir_interpolated = interpolate_ir_nn(ir_pos0, ir_pos1, alpha)
+                        elif method == "dtw":
+                            ir_interpolated = interpolate_ir_dtw(
+                                ir_pos0,
+                                ir_pos1,
+                                ir_pos0_warped,
+                                ir_pos1_warped,
+                                displacement_pos0,
+                                displacement_pos1,
+                                alpha,
+                            )
+
+                        # Find target IR
+                        angle_target = angles[ref_indices[ii]] + jj
+                        idx_target = np.where(angles == angle_target)[0][0]
+                        ir_target = np.squeeze(irs[idx_target, 0, config["ir_range"]])
+
+                        # Calculate system mismatch
+                        sm_tmp[idx_target] = metrics.system_mismatch(
+                            ir_target, ir_interpolated
+                        )
+
+                        # Calculate magnitude and phase error for plotting
+                        (
+                            f_axis,
+                            mag_error_tmp[ii * angle_spacing + jj],
+                            phase_error_tmp[ii * angle_spacing + jj],
+                        ) = metrics.mag_phase_error(
+                            ir_target,
+                            ir_interpolated,
+                            nFFT=512,
+                            fs=fs,
+                            dB=False,
+                            discont=1.5 * np.pi,
+                        )
+
+                # Extract system mismatch per quadrant
+                sm_tmp_overall, sm_tmp_front, sm_tmp_back, sm_tmp_clat, sm_tmp_ilat = (
+                    extract_median_error_per_quadrant(
+                        sm_tmp, angles, angle_spacing, True
+                    )
                 )
+                sm_all.append(sm_tmp)
 
-                ir_interpolated_nn = ir_pos0 if alpha >= 0.5 else ir_pos1
-                ir_interpolated_linear = alpha * ir_pos0 + (1 - alpha) * ir_pos1
-
-                # Find target IR
-                angle_target = angles[ref_indices[ii]] + jj
-                idx_target = np.where(angles == angle_target)[0][0]
-                ir_target = np.squeeze(irs[idx_target, 0, config["ir_range"]])
-
-                # Calculate system mismatch
-                sm_dtw_tmp[idx_target] = metrics.system_mismatch(
-                    ir_target, ir_interpolated_dtw
-                )
-                sm_nn_tmp[idx_target] = metrics.system_mismatch(
-                    ir_target, ir_interpolated_nn
-                )
-                sm_linear_tmp[idx_target] = metrics.system_mismatch(
-                    ir_target, ir_interpolated_linear
-                )
-
-                # Calculate magnitude and phase error for plotting
-                (
-                    f_axis,
-                    mag_error_dtw[ii * angle_spacing + jj],
-                    phase_error_dtw[ii * angle_spacing + jj],
-                ) = metrics.mag_phase_error(
-                    ir_target,
-                    ir_interpolated_dtw,
-                    nFFT=512,
-                    fs=fs,
-                    dB=False,
-                    discont=1.5 * np.pi,
-                )
-                (
-                    _,
-                    mag_error_nn[ii * angle_spacing + jj],
-                    phase_error_nn[ii * angle_spacing + jj],
-                ) = metrics.mag_phase_error(
-                    ir_target,
-                    ir_interpolated_nn,
-                    nFFT=512,
-                    fs=fs,
-                    dB=False,
-                    discont=1.5 * np.pi,
-                )
-                (
-                    _,
-                    mag_error_linear[ii * angle_spacing + jj],
-                    phase_error_linear[ii * angle_spacing + jj],
-                ) = metrics.mag_phase_error(
-                    ir_target,
-                    ir_interpolated_linear,
-                    nFFT=512,
-                    fs=fs,
-                    dB=False,
-                    discont=1.5 * np.pi,
-                )
-
-        # Extract system mismatch per quadrant
-        sm_dtw_overall, sm_dtw_front, sm_dtw_back, sm_dtw_clat, sm_dtw_ilat = (
-            extract_median_error_per_quadrant(sm_dtw_tmp, angles, angle_spacing, True)
-        )
-        sm_nn_overall, sm_nn_front, sm_nn_back, sm_nn_clat, sm_nn_ilat = (
-            extract_median_error_per_quadrant(sm_nn_tmp, angles, angle_spacing, True)
-        )
-        (
-            sm_linear_overall,
-            sm_linear_front,
-            sm_linear_back,
-            sm_linear_clat,
-            sm_linear_ilat,
-        ) = extract_median_error_per_quadrant(
-            sm_linear_tmp, angles, angle_spacing, True
-        )
-
-        results = pd.concat(
-            [
-                results,
-                pd.DataFrame(
+                results_tmp = pd.DataFrame(
                     {
-                        "method": ["DTW", "NN", "Direct"],
-                        "spacing": [angle_spacing, angle_spacing, angle_spacing],
-                        "sm_overall": [
-                            sm_dtw_overall,
-                            sm_nn_overall,
-                            sm_linear_overall,
+                        "method": [method],
+                        "step_pattern": [step_pattern_str],
+                        "spacing": [
+                            angle_spacing,
                         ],
-                        "sm_front": [sm_dtw_front, sm_nn_front, sm_linear_front],
-                        "sm_back": [sm_dtw_back, sm_nn_back, sm_linear_back],
-                        "sm_clat": [sm_dtw_clat, sm_nn_clat, sm_linear_clat],
-                        "sm_ilat": [sm_dtw_ilat, sm_nn_ilat, sm_linear_ilat],
+                        "sm_overall": [
+                            sm_tmp_overall,
+                        ],
+                        "sm_front": [
+                            sm_tmp_front,
+                        ],
+                        "sm_back": [sm_tmp_back],
+                        "sm_clat": [sm_tmp_clat],
+                        "sm_ilat": [sm_tmp_ilat],
                     }
-                ),
-            ],
-            ignore_index=True,
-        )
+                )
 
-        # Plot results with regularization for low values
-        reg_lin = 10 ** (config["plot_sm_limits"][0] / 20)
-        sm_dtw_tmp[sm_dtw_tmp < reg_lin] = reg_lin
-        sm_nn_tmp[sm_nn_tmp < reg_lin] = reg_lin
-        sm_linear_tmp[sm_linear_tmp < reg_lin] = reg_lin
+                if results is None:
+                    results = results_tmp
+                else:
+                    results = pd.concat(
+                        [results, results_tmp],
+                        ignore_index=True,
+                    )
 
-        sm_dtw_db = 20 * np.log10(sm_dtw_tmp)
-        sm_nn_db = 20 * np.log10(sm_nn_tmp)
-        sm_linear_db = 20 * np.log10(sm_linear_tmp)
+                # Plot results for magnitude/phase error
+                if method == "dtw":
+                    fn = (
+                        config["fn_figure_dir"]
+                        + f"fd_error_{method}_steppattern_{step_pattern_str}_spacing_{angle_spacing}deg.png"
+                    )
+                else:
+                    fn = (
+                        config["fn_figure_dir"]
+                        + f"fd_error_{method}_spacing_{angle_spacing}deg.png"
+                    )
+                plot_mag_phase_error(
+                    angles,
+                    mag_error_tmp,
+                    phase_error_tmp,
+                    fs,
+                    config["export_figures"],
+                    fn,
+                )
 
-        # Calculate mean/median on all positions that are interpolated
-        interp_mask = np.ones_like(angles, dtype=bool)
-        interp_mask[ref_indices] = False
+    # # TODO: Fix plot
+    # # Plot results with regularization for low values
+    # reg_lin = 10 ** (config["plot_sm_limits"][0] / 20)
+    # sm_tmp[sm_tmp < reg_lin] = reg_lin
+    # sm_nn_tmp[sm_nn_tmp < reg_lin] = reg_lin
+    # sm_linear_tmp[sm_linear_tmp < reg_lin] = reg_lin
 
-        print(f"System mismatch for angle spacing {angle_spacing}°:")
-        print(f"DTW: Median: {sm_dtw_overall} dB")
-        print(f"Linear: Median: {sm_linear_overall} dB")
-        print(f"Nearest neighbor: Median: {sm_nn_overall} dB")
-        print("----------")
+    # sm_dtw_db = 20 * np.log10(sm_tmp)
+    # sm_nn_db = 20 * np.log10(sm_nn_tmp)
+    # sm_linear_db = 20 * np.log10(sm_linear_tmp)
 
-        # Plot results for system mismatch
-        plt.figure()
-        plt.plot(angles, sm_dtw_db, label="DTW-based interpolation")
-        plt.plot(angles, sm_linear_db, label="Linear interpolation")
-        plt.plot(angles, sm_nn_db, label="Nearest neighbor")
-        plt.xlabel("Angle (degrees)")
-        plt.ylabel("System mismatch (dB)")
-        plt.ylim(config["plot_sm_limits"])
-        plt.title(f"System mismatch of interpolated IRs, spacing {angle_spacing}°")
-        plt.legend()
-        plt.grid()
+    # # Calculate mean/median on all positions that are interpolated
+    # interp_mask = np.ones_like(angles, dtype=bool)
+    # interp_mask[ref_indices] = False
 
-        if config["export_figures"]:
-            plt.savefig(
-                f"figures/system_mismatch_spacing_{angle_spacing}deg.png", dpi=300
-            )
+    # print(f"System mismatch for angle spacing {angle_spacing}°:")
+    # print(f"DTW: Median: {sm_tmp_overall} dB")
+    # print(f"Linear: Median: {sm_linear_overall} dB")
+    # print(f"Nearest neighbor: Median: {sm_nn_overall} dB")
+    # print("----------")
 
-        # Plot results for magnitude/phase error
-        plot_mag_phase_error(
-            angles,
-            mag_error_dtw,
-            phase_error_dtw,
-            fs,
-            angle_spacing,
-            "DTW-based interpolation",
-            config["export_figures"],
-        )
-        plot_mag_phase_error(
-            angles,
-            mag_error_linear,
-            phase_error_linear,
-            fs,
-            angle_spacing,
-            "Linear interpolation",
-            config["export_figures"],
-        )
-        plot_mag_phase_error(
-            angles,
-            mag_error_nn,
-            phase_error_nn,
-            fs,
-            angle_spacing,
-            "Nearest neighbor",
-            config["export_figures"],
-        )
+    # # Plot results for system mismatch
+    # plt.figure()
+    # plt.plot(angles, sm_dtw_db, label="DTW-based interpolation")
+    # plt.plot(angles, sm_linear_db, label="Linear interpolation")
+    # plt.plot(angles, sm_nn_db, label="Nearest neighbor")
+    # plt.xlabel("Angle (degrees)")
+    # plt.ylabel("System mismatch (dB)")
+    # plt.ylim(config["plot_sm_limits"])
+    # plt.title(f"System mismatch of interpolated IRs, spacing {angle_spacing}°")
+    # plt.legend()
+    # plt.grid()
 
-    if config["export_results"]:
-        results.to_csv(
-            "results/system_mismatch_results.csv", index=False, float_format="%.2f"
-        )
-        results.to_pickle("results/system_mismatch_results.pkl")
+    # if config["export_figures"]:
+    #     plt.savefig(
+    #         f"figures/system_mismatch_spacing_{angle_spacing}deg.png",
+    #         dpi=300,
+    #     )
+
+    # if config["export_results"]:
+    #     results.to_csv(
+    #         "results/system_mismatch_results.csv", index=False, float_format="%.2f"
+    #     )
+    #     results.to_pickle("results/system_mismatch_results.pkl")
 
     print(results)
-    plt.show()
+    # plt.show()
 
 
 if __name__ == "__main__":
