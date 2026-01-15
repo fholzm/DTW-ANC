@@ -58,17 +58,13 @@ def load_npz_dataset(file_path: str) -> tuple[np.ndarray, np.ndarray, float]:
     return irs, angles, fs
 
 
-def load_sofa_dataset(
-    file_path: str, ir_ds_factor: int = 1
-) -> tuple[np.ndarray, np.ndarray, float]:
+def load_sofa_dataset(config: dict) -> tuple[np.ndarray, np.ndarray, float]:
     """Load dataset from SOFA file
 
     Parameters
     ----------
-    file_path : str
-        Path to the SOFA file
-    ir_ds_factor : int
-        Downsampling factor for the impulse responses
+    config : dict
+        Configuration dictionary
 
     Returns
     -------
@@ -79,7 +75,7 @@ def load_sofa_dataset(
     fs : float
         Sampling frequency
     """
-    sofa_data = sf.read_sofa(file_path, "r")
+    sofa_data = sf.read_sofa(config["dataset_path"], "r")
     irs = sofa_data.Data_IR
     angles = 360 - sofa_data.SourcePosition[:, 0]  # Convert to intrinsic rotation
     fs = sofa_data.Data_SamplingRate
@@ -94,10 +90,45 @@ def load_sofa_dataset(
         irs = np.concatenate((irs[[-1]], irs), axis=0)
         angles = np.concatenate((np.array([0]), angles), axis=0)
 
-    if ir_ds_factor > 1:
-        irs_ds = signal.decimate(irs, ir_ds_factor, axis=2, zero_phase=True)
+    if config["ir_ds_factor"] > 1:
+        irs_ds = signal.decimate(irs, config["ir_ds_factor"], axis=2, zero_phase=True)
         irs = irs_ds
-        fs /= ir_ds_factor
+        fs /= config["ir_ds_factor"]
+
+    if config["ir_range"].stop > irs.shape[2]:
+        config["ir_range"] = range(config["ir_range"].start, irs.shape[2])
+
+    # Plot IR dataset
+    hrir_to_plot = np.abs(irs[:, 0, config["ir_range"]])
+    hrir_to_plot /= np.max(hrir_to_plot)
+
+    t_axis = np.arange(len(config["ir_range"])) / fs * 1000  # in ms
+
+    plt.figure()
+    ax1 = plt.gca()
+    plt.pcolormesh(
+        angles,
+        t_axis,
+        20 * np.log10(hrir_to_plot.T + 1e-12),
+        shading="auto",
+        cmap="Greys",
+        vmin=-60,
+        vmax=0,
+    )
+    plt.colorbar(label="Magnitude (dB)", pad=0.15)
+    plt.title("IR dataset")
+    plt.xlabel("Angle (degrees)")
+    ax1.set_ylabel("Time (ms)")
+
+    # Add second y-axis with samples
+    ax2 = ax1.twinx()
+    ax2.set_ylim(config["ir_range"].start - 0.5, config["ir_range"].stop - 1.5)
+    ax2.set_ylabel("Samples")
+    ax2.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
+
+    if config["export_figures"]:
+        ds_name = config["dataset_path"].split("/")[-1].split(".")[0]
+        plt.savefig(f"figures/ir_{ds_name}.png", dpi=300)
 
     return irs, angles, fs
 
@@ -363,44 +394,7 @@ def main():
     if config["dataset_path"].endswith(".npz"):
         irs, angles, fs = load_npz_dataset(config["dataset_path"])
     elif config["dataset_path"].endswith(".sofa"):
-        irs, angles, fs = load_sofa_dataset(
-            config["dataset_path"], config["ir_ds_factor"]
-        )
-
-    if config["ir_range"].stop > irs.shape[2]:
-        config["ir_range"] = range(config["ir_range"].start, irs.shape[2])
-
-    # Plot IR dataset
-    hrir_to_plot = np.abs(irs[:, 0, config["ir_range"]])
-    hrir_to_plot /= np.max(hrir_to_plot)
-
-    t_axis = np.arange(len(config["ir_range"])) / fs * 1000  # in ms
-
-    plt.figure()
-    ax1 = plt.gca()
-    plt.pcolormesh(
-        angles,
-        t_axis,
-        20 * np.log10(hrir_to_plot.T + 1e-12),
-        shading="auto",
-        cmap="Greys",
-        vmin=-60,
-        vmax=0,
-    )
-    plt.colorbar(label="Magnitude (dB)", pad=0.15)
-    plt.title("IR dataset")
-    plt.xlabel("Angle (degrees)")
-    ax1.set_ylabel("Time (ms)")
-
-    # Add second y-axis with samples
-    ax2 = ax1.twinx()
-    ax2.set_ylim(config["ir_range"].start - 0.5, config["ir_range"].stop - 1.5)
-    ax2.set_ylabel("Samples")
-    ax2.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
-
-    if config["export_figures"]:
-        ds_name = config["dataset_path"].split("/")[-1].split(".")[0]
-        plt.savefig(f"figures/ir_{ds_name}.png", dpi=300)
+        irs, angles, fs = load_sofa_dataset(config)
 
     results = pd.DataFrame(
         columns=[
@@ -420,7 +414,6 @@ def main():
         ref_irs = np.squeeze(
             irs[ref_indices, 0]
         )  # Symmetric setup --> use one side only
-        ir_refs = ref_irs[:, config["ir_range"]]
 
         sm_dtw_tmp = np.zeros_like(angles, dtype=float)
         sm_nn_tmp = np.zeros_like(angles, dtype=float)
@@ -457,16 +450,9 @@ def main():
                     displacement_pos1,
                     alpha,
                 )
-                # ir_interpolated_dtw = inteprolate_ir_v2(
-                #     ir_pos0,
-                #     ir_pos1,
-                #     displacement_pos0,
-                #     displacement_pos1,
-                #     alpha,
-                # )
 
                 ir_interpolated_nn = ir_pos0 if alpha >= 0.5 else ir_pos1
-                ir_inteprolated_linear = alpha * ir_pos0 + (1 - alpha) * ir_pos1
+                ir_interpolated_linear = alpha * ir_pos0 + (1 - alpha) * ir_pos1
 
                 # Find target IR
                 angle_target = angles[ref_indices[ii]] + jj
@@ -481,7 +467,7 @@ def main():
                     ir_target, ir_interpolated_nn
                 )
                 sm_linear_tmp[idx_target] = metrics.system_mismatch(
-                    ir_target, ir_inteprolated_linear
+                    ir_target, ir_interpolated_linear
                 )
 
                 # Calculate magnitude and phase error for plotting
@@ -515,7 +501,7 @@ def main():
                     phase_error_linear[ii * angle_spacing + jj],
                 ) = metrics.mag_phase_error(
                     ir_target,
-                    ir_inteprolated_linear,
+                    ir_interpolated_linear,
                     nFFT=512,
                     fs=fs,
                     dB=False,
