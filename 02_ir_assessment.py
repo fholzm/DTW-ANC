@@ -21,7 +21,8 @@ config = {
         30,
         45,
     ],  # spacing of the reference points, degrees
-    "ir_range": range(0, 128),  # taps of the IR to consider in analysis
+    "ir_ds_factor": 6,  # downsampling factor for IRs
+    "ir_range": range(0, 32),  # taps of the IR to consider in analysis
     "stepPattern": dtw.symmetricP2,  # DTW step pattern
     # "stepPattern": dtw.rabinerJuangStepPattern(6, "c"),
     "plot_sm_limits": [-40, 8],  # dB
@@ -57,13 +58,17 @@ def load_npz_dataset(file_path: str) -> tuple[np.ndarray, np.ndarray, float]:
     return irs, angles, fs
 
 
-def load_sofa_dataset(file_path: str) -> tuple[np.ndarray, np.ndarray, float]:
+def load_sofa_dataset(
+    file_path: str, ir_ds_factor: int = 1
+) -> tuple[np.ndarray, np.ndarray, float]:
     """Load dataset from SOFA file
 
     Parameters
     ----------
     file_path : str
         Path to the SOFA file
+    ir_ds_factor : int
+        Downsampling factor for the impulse responses
 
     Returns
     -------
@@ -88,6 +93,11 @@ def load_sofa_dataset(file_path: str) -> tuple[np.ndarray, np.ndarray, float]:
     if angles[0] != 0:
         irs = np.concatenate((irs[[-1]], irs), axis=0)
         angles = np.concatenate((np.array([0]), angles), axis=0)
+
+    if ir_ds_factor > 1:
+        irs_ds = signal.decimate(irs, ir_ds_factor, axis=2, zero_phase=True)
+        irs = irs_ds
+        fs /= ir_ds_factor
 
     return irs, angles, fs
 
@@ -353,25 +363,40 @@ def main():
     if config["dataset_path"].endswith(".npz"):
         irs, angles, fs = load_npz_dataset(config["dataset_path"])
     elif config["dataset_path"].endswith(".sofa"):
-        irs, angles, fs = load_sofa_dataset(config["dataset_path"])
+        irs, angles, fs = load_sofa_dataset(
+            config["dataset_path"], config["ir_ds_factor"]
+        )
+
+    if config["ir_range"].stop > irs.shape[2]:
+        config["ir_range"] = range(config["ir_range"].start, irs.shape[2])
 
     # Plot IR dataset
     hrir_to_plot = np.abs(irs[:, 0, config["ir_range"]])
     hrir_to_plot /= np.max(hrir_to_plot)
+
+    t_axis = np.arange(len(config["ir_range"])) / fs * 1000  # in ms
+
     plt.figure()
+    ax1 = plt.gca()
     plt.pcolormesh(
         angles,
-        np.arange(config["ir_range"].start, config["ir_range"].stop),
+        t_axis,
         20 * np.log10(hrir_to_plot.T + 1e-12),
         shading="auto",
         cmap="Greys",
         vmin=-60,
         vmax=0,
     )
-    plt.colorbar(label="Magnitude (dB)")
+    plt.colorbar(label="Magnitude (dB)", pad=0.15)
     plt.title("IR dataset")
     plt.xlabel("Angle (degrees)")
-    plt.ylabel("Samples")
+    ax1.set_ylabel("Time (ms)")
+
+    # Add second y-axis with samples
+    ax2 = ax1.twinx()
+    ax2.set_ylim(config["ir_range"].start - 0.5, config["ir_range"].stop - 1.5)
+    ax2.set_ylabel("Samples")
+    ax2.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
 
     if config["export_figures"]:
         ds_name = config["dataset_path"].split("/")[-1].split(".")[0]
@@ -519,7 +544,7 @@ def main():
                 results,
                 pd.DataFrame(
                     {
-                        "method": ["DTW", "Nearest Neighbor", "Linear"],
+                        "method": ["DTW", "NN", "Direct"],
                         "spacing": [angle_spacing, angle_spacing, angle_spacing],
                         "sm_overall": [
                             sm_dtw_overall,
@@ -603,7 +628,9 @@ def main():
         )
 
     if config["export_results"]:
-        results.to_csv("results/system_mismatch_results.csv", index=False)
+        results.to_csv(
+            "results/system_mismatch_results.csv", index=False, float_format="%.2f"
+        )
         results.to_pickle("results/system_mismatch_results.pkl")
 
     print(results)
