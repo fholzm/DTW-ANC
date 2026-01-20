@@ -7,16 +7,17 @@ from tqdm import tqdm
 from lxml import objectify, etree
 
 # Define global parameters
-sec_src_coords = [0.25, 0.0, 0.0]
+sec_src_coords = [-0.25, 0.0, 0.0]
 sec_src_gain = -20.0
-angles_to_test = np.arange(0, 361, 1, dtype=float)
+positions_to_test = np.arange(0, 0.5, 0.005, dtype=float)
 fs = 48000
 ir_length = 512
 n_jobs = 8
+sinc_order = 0
 
 
-def generate_tascar_project(rotation: float = 0.0) -> str:
-    fn = f"ir_rot{rotation:.1f}"
+def generate_tascar_project(position: float = 0.0) -> str:
+    fn = f"ir_pos{position:.3f}"
 
     root = objectify.Element(
         "session",
@@ -32,7 +33,9 @@ def generate_tascar_project(rotation: float = 0.0) -> str:
 
     # Add secondary source at specified coordinates and gain
     source = objectify.SubElement(scene, "source", name="sec_source")
-    snd = objectify.SubElement(source, "sound", type="omni", gain=str(sec_src_gain))
+    snd = objectify.SubElement(
+        source, "sound", type="omni", gain=str(sec_src_gain), sincorder=str(sinc_order)
+    )
     pos = objectify.SubElement(source, "position")._setText(
         f"0 {sec_src_coords[0]} {sec_src_coords[1]} {sec_src_coords[2]}"
     )
@@ -44,10 +47,10 @@ def generate_tascar_project(rotation: float = 0.0) -> str:
         name="hrtf_receiver",
         type="hrtf",
         nf_filter="true",
-        # sincorder="64",
+        # sincorder=str(sinc_order),
         # prewarpingmode="2",
     )
-    orient = objectify.SubElement(rec, "orientation")._setText(f"0 {rotation} 0 0")
+    pos = objectify.SubElement(rec, "position")._setText(f"{position} 0 0")
 
     # Remove annotations from root
     objectify.deannotate(root, xsi_nil=True)
@@ -72,9 +75,9 @@ def read_irs(fn: str) -> np.ndarray:
     return irs[:ir_length]
 
 
-def render_tascar_project(rotation: float = 0.0):
+def render_tascar_project(position: float = 0.0):
     # Generate project file
-    fn = generate_tascar_project(rotation)
+    fn = generate_tascar_project(position)
 
     # Render project
     cmd = (
@@ -89,7 +92,7 @@ def render_tascar_project(rotation: float = 0.0):
     result = subprocess.run(cmd, shell=True, check=True, text=True, capture_output=True)
 
     with open("tascar.log", "a") as log:
-        log.write(f"Scene at angle {rotation} rendered successfully.\n")
+        log.write(f"Scene at position {position} rendered successfully.\n")
         log.write(result.stdout)
         log.write(result.stderr)
         log.write("\n")
@@ -110,19 +113,24 @@ def main():
     sf.write("impulse.wav", impulse, fs)
 
     results = Parallel(n_jobs=n_jobs)(
-        delayed(render_tascar_project)(angle) for angle in tqdm(angles_to_test)
+        delayed(render_tascar_project)(position) for position in tqdm(positions_to_test)
     )
 
     # Delete impulse after use
     os.remove("impulse.wav")
 
-    # Convert results in a format, where irs for specific angles can easiöly be extracted
+    # Convert results in a format, where irs for specific positions can easily be extracted
     irs = np.array(results).transpose(0, 2, 1)
 
     # Save results to file
     if not os.path.exists("data/TASCAR_IRs"):
         os.mkdir("data/TASCAR_IRs")
-    np.savez("data/TASCAR_IRs/measured_irs.npz", irs=irs, angles=angles_to_test, fs=fs)
+    np.savez(
+        "data/TASCAR_IRs/measured_irs_tr.npz",
+        irs=irs,
+        positions=positions_to_test,
+        fs=fs,
+    )
 
 
 if __name__ == "__main__":

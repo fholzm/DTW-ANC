@@ -1,5 +1,6 @@
 results/*
 figures/*
+data/TASCAR_IRs/*
 !*/.gitkeep
 
 # Created by https://www.toptal.com/developers/gitignore/api/macos,linux,windows,python,visualstudiocode
