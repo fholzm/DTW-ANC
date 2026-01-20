@@ -50,7 +50,7 @@ config = {
     "interpolation_methods": ["direct", "nn", "dtw"],  # Methods to test
     "step_patterns": ["symmetricP2"],  # Allowed step patterns for DTW
     "ir_ds_factor": 6,  # downsampling factor for IRs
-    "ir_range": range(0, 256),  # taps of the IR to consider in analysis
+    "ir_range": range(0, 64),  # taps of the IR to consider in analysis
     "plot_sm_limits": [-40, 8],  # dB
     "plot_mag_limits": [-30, 0],  # dB
     "plot_nfft": 512,
@@ -103,9 +103,18 @@ def load_npz_dataset(config: dict) -> tuple[np.ndarray, np.ndarray, float]:
     """
     ir_data = np.load(config["dataset_path"])
     irs = ir_data["irs"]
-    irs = irs[:, :, config["ir_range"]]
     positions = ir_data["positions"]
     fs = ir_data["fs"].item()
+
+    if config["ir_ds_factor"] > 1:
+        irs_ds = signal.decimate(irs, config["ir_ds_factor"], axis=2, zero_phase=True)
+        irs = irs_ds
+        fs /= config["ir_ds_factor"]
+
+    if config["ir_range"].stop > irs.shape[2]:
+        config["ir_range"] = range(config["ir_range"].start, irs.shape[2])
+    else:
+        irs = irs[:, :, config["ir_range"]]
 
     return irs, positions, fs
 
@@ -149,6 +158,8 @@ def load_sofa_dataset(config: dict) -> tuple[np.ndarray, np.ndarray, float]:
 
     if config["ir_range"].stop > irs.shape[2]:
         config["ir_range"] = range(config["ir_range"].start, irs.shape[2])
+    else:
+        irs = irs[:, :, config["ir_range"]]
 
     return irs, angles, fs
 
