@@ -8,6 +8,8 @@ from matplotlib.ticker import ScalarFormatter
 from utils import metrics
 import pandas as pd
 import os
+import toml
+import argparse
 
 # global variables
 # config = {
@@ -34,29 +36,29 @@ import os
 #     "export_results": True,
 # }
 
-config = {
-    "fn_output_prefix": "eval_spacing_",
-    "fn_result_dir": "results/eval_tr/",
-    "fn_figure_dir": "figures/eval_tr/",
-    "dataset_path": "data/TASCAR_IRs/measured_irs_tr.npz",
-    "mode": "tr",
-    "spacing_fixpos": [
-        2.5,
-        5,
-        10,
-        15,
-        25,
-    ],  # spacing of the reference points, centimeters
-    "interpolation_methods": ["direct", "nn", "dtw"],  # Methods to test
-    "step_patterns": ["symmetricP2"],  # Allowed step patterns for DTW
-    "ir_ds_factor": 6,  # downsampling factor for IRs
-    "ir_range": range(0, 64),  # taps of the IR to consider in analysis
-    "plot_sm_limits": [-40, 8],  # dB
-    "plot_mag_limits": [-30, 0],  # dB
-    "plot_nfft": 512,
-    "export_figures": True,
-    "export_results": True,
-}
+# config = {
+#     "fn_output_prefix": "eval_spacing_",
+#     "fn_result_dir": "results/eval_tr/",
+#     "fn_figure_dir": "figures/eval_tr/",
+#     "dataset_path": "data/TASCAR_IRs/measured_irs_tr.npz",
+#     "mode": "tr",
+#     "spacing_fixpos": [
+#         2.5,
+#         5,
+#         10,
+#         15,
+#         25,
+#     ],  # spacing of the reference points, centimeters
+#     "interpolation_methods": ["direct", "nn", "dtw"],  # Methods to test
+#     "step_patterns": ["symmetricP2"],  # Allowed step patterns for DTW
+#     "ir_ds_factor": 6,  # downsampling factor for IRs
+#     "ir_range": range(0, 64),  # taps of the IR to consider in analysis
+#     "plot_sm_limits": [-40, 8],  # dB
+#     "plot_mag_limits": [-30, 0],  # dB
+#     "plot_nfft": 512,
+#     "export_figures": True,
+#     "export_results": True,
+# }
 
 # config = {
 #     "fn_output_prefix": "eval_steppattern_",
@@ -85,7 +87,7 @@ config = {
 # }
 
 
-def load_npz_dataset(config: dict) -> tuple[np.ndarray, np.ndarray, float]:
+def load_npz_dataset(config: dict) -> tuple[np.ndarray, np.ndarray, float, range]:
     """Load dataset from npz file
 
     Parameters
@@ -100,7 +102,10 @@ def load_npz_dataset(config: dict) -> tuple[np.ndarray, np.ndarray, float]:
         Positions array
     fs : float
         Sampling frequency
+    ir_range : range
+        Range of impulse response taps considered
     """
+
     ir_data = np.load(config["dataset_path"])
     irs = ir_data["irs"]
     positions = ir_data["positions"]
@@ -111,15 +116,17 @@ def load_npz_dataset(config: dict) -> tuple[np.ndarray, np.ndarray, float]:
         irs = irs_ds
         fs /= config["ir_ds_factor"]
 
-    if config["ir_range"].stop > irs.shape[2]:
-        config["ir_range"] = range(config["ir_range"].start, irs.shape[2])
+    if config["ir_range"][1] > irs.shape[2]:
+        ir_range = range(config["ir_range"][0], irs.shape[2])
     else:
-        irs = irs[:, :, config["ir_range"]]
+        ir_range = range(config["ir_range"][0], config["ir_range"][1])
 
-    return irs, positions, fs
+    irs = irs[:, :, ir_range]
+
+    return irs, positions, fs, ir_range
 
 
-def load_sofa_dataset(config: dict) -> tuple[np.ndarray, np.ndarray, float]:
+def load_sofa_dataset(config: dict) -> tuple[np.ndarray, np.ndarray, float, range]:
     """Load dataset from SOFA file
 
     Parameters
@@ -135,6 +142,8 @@ def load_sofa_dataset(config: dict) -> tuple[np.ndarray, np.ndarray, float]:
         Angles array
     fs : float
         Sampling frequency
+    ir_range : range
+        Range of impulse response taps considered
     """
     sofa_data = sf.read_sofa(config["dataset_path"], "r")
     irs = sofa_data.Data_IR
@@ -156,12 +165,14 @@ def load_sofa_dataset(config: dict) -> tuple[np.ndarray, np.ndarray, float]:
         irs = irs_ds
         fs /= config["ir_ds_factor"]
 
-    if config["ir_range"].stop > irs.shape[2]:
-        config["ir_range"] = range(config["ir_range"].start, irs.shape[2])
+    if config["ir_range"][1] > irs.shape[2]:
+        ir_range = range(config["ir_range"][0], irs.shape[2])
     else:
-        irs = irs[:, :, config["ir_range"]]
+        ir_range = range(config["ir_range"][0], config["ir_range"][1])
 
-    return irs, angles, fs
+    irs = irs[:, :, ir_range]
+
+    return irs, positions, fs, ir_range
 
 
 def select_step_pattern(step_pattern_name: str) -> dtw.StepPattern:
@@ -386,7 +397,7 @@ def plot_mag_phase_error(
     mag_error: np.ndarray,
     phase_error: np.ndarray,
     fs: float,
-    label_pos: str,
+    config: dict,
     export_figure: bool = False,
     export_figure_fn: str = "",
 ) -> None:
@@ -402,13 +413,15 @@ def plot_mag_phase_error(
         Phase error matrix (angles x frequencies)
     fs : float
         Sampling frequency
-    label_pos : str
-        Label for position axis
+    config : dict
+        Configuration dictionary
     export_figure : bool
         Whether to export the figure
     export_figure_fn : str
         Filename for exporting the figure
     """
+    label_pos = "Position (cm)" if config["mode"] == "tr" else "Angle (degrees)"
+
     freq = np.linspace(0, fs / 2, config["plot_nfft"] // 2 + 1)
 
     plt.figure()
@@ -462,25 +475,32 @@ def plot_mag_phase_error(
 
 
 def main():
+    # Load toml config from argument
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-c", "--config", nargs="?", const=1, type=str, default="config.toml"
+    )
+
+    args = parser.parse_args()
+    config = toml.load(args.config)
+
     # Create directories for figures and results
     os.makedirs(config["fn_figure_dir"], exist_ok=True)
     os.makedirs(config["fn_result_dir"], exist_ok=True)
 
     # Import dataset
     if config["dataset_path"].endswith(".npz"):
-        irs, position, fs = load_npz_dataset(config)
+        irs, position, fs, ir_range = load_npz_dataset(config)
     elif config["dataset_path"].endswith(".sofa"):
-        irs, position, fs = load_sofa_dataset(config)
+        irs, position, fs, ir_range = load_sofa_dataset(config)
 
     label_pos = "Position (cm)" if config["mode"] == "tr" else "Angle (degrees)"
 
-    spacing_between_positions = position[1] - position[0]
-
     # Plot IR dataset
-    hrir_to_plot = np.abs(irs[:, 0, config["ir_range"]])
+    hrir_to_plot = np.abs(irs[:, 0, ir_range])
     hrir_to_plot /= np.max(hrir_to_plot)
 
-    t_axis = np.arange(len(config["ir_range"])) / fs * 1000  # in ms
+    t_axis = np.arange(len(ir_range)) / fs * 1000  # in ms
 
     plt.figure()
     ax1 = plt.gca()
@@ -500,7 +520,7 @@ def main():
 
     # Add second y-axis with samples
     ax2 = ax1.twinx()
-    ax2.set_ylim(config["ir_range"].start - 0.5, config["ir_range"].stop - 1.5)
+    ax2.set_ylim(config["ir_range"][0] - 0.5, config["ir_range"][1] - 1.5)
     ax2.set_ylabel("Samples")
     ax2.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
 
@@ -575,7 +595,7 @@ def main():
                         idx_target = np.where(
                             np.abs(position - position_target) < 1e-6
                         )[0][0]
-                        ir_target = np.squeeze(irs[idx_target, 0, config["ir_range"]])
+                        ir_target = np.squeeze(irs[idx_target, 0, ir_range])
 
                         # Calculate system mismatch
                         sm_tmp[idx_target] = metrics.system_mismatch(
@@ -670,7 +690,7 @@ def main():
                     mag_error_tmp,
                     phase_error_tmp,
                     fs,
-                    label_pos,
+                    config,
                     config["export_figures"],
                     fn,
                 )

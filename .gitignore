@@ -1,3 +1,4 @@
+config.toml
 results/*
 figures/*
 data/TASCAR_IRs/*

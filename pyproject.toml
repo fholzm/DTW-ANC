@@ -15,5 +15,6 @@ dependencies = [
     "pyfar>=0.7.3",
     "scipy>=1.16.3",
     "sofar>=1.2.2",
+    "toml>=0.10.2",
     "tqdm>=4.67.1",
 ]
