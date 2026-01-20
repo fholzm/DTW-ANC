@@ -1,0 +1,15 @@
+fn_output_prefix = "eval_spacing_rot_"
+fn_result_dir = "results/eval_spacing_rot/"
+fn_figure_dir = "figures/eval_spacing_rot/"
+dataset_path = "data/THK_NF/HRIR_CIRC360_NF025.sofa"
+mode = "rot"
+spacing_fixpos = [5, 10, 15, 20, 30, 45]  # spacing of the reference points, centimeters
+interpolation_methods = ["direct", "nn", "dtw"]  # Methods to test
+step_patterns = ["symmetricP2"]  # Allowed step patterns for DTW
+ir_ds_factor = 6  # downsampling factor for IRs
+ir_range = [0, 32]  # taps of the IR to consider in analysis (was: range(0, 64))
+plot_sm_limits = [-40, 8]  # dB
+plot_mag_limits = [-30, 0]  # dB
+plot_nfft = 512
+export_figures = true
+export_results = true

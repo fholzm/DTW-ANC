@@ -1,11 +1,18 @@
-fn_output_prefix = "eval_spacing_tr_"
-fn_result_dir = "results/eval_spacing_tr/"
-fn_figure_dir = "figures/eval_spacing_tr/"
+fn_output_prefix = "eval_steppattern_rot_"
+fn_result_dir = "results/eval_steppattern_rot/"
+fn_figure_dir = "figures/eval_steppattern_rot/"
 dataset_path = "data/TASCAR_IRs/measured_irs_tr.npz"
 mode = "tr"
-spacing_fixpos = [2.5, 5.0, 10.0, 15.0, 25.0]  # spacing of the reference points, centimeters
+spacing_fixpos = [30]  # spacing of the reference points, centimeters
 interpolation_methods = ["direct", "nn", "dtw"]  # Methods to test
-step_patterns = ["symmetricP2"]  # Allowed step patterns for DTW
+step_patterns = [
+    "symmetric1",
+    "symmetric2",
+    "symmetricP0",
+    "symmetricP05",
+    "symmetricP1",
+    "symmetricP2",
+]  # Allowed step patterns for DTW
 ir_ds_factor = 6  # downsampling factor for IRs
 ir_range = [0, 64]  # taps of the IR to consider in analysis (was: range(0, 64))
 plot_sm_limits = [-40, 8]  # dB

@@ -9,82 +9,7 @@ from utils import metrics
 import pandas as pd
 import os
 import toml
-import argparse
-
-# global variables
-# config = {
-#     "fn_output_prefix": "eval_spacing_",
-#     "fn_result_dir": "results/",
-#     "fn_figure_dir": "figures/",
-#     "dataset_path": "data/THK_NF/HRIR_CIRC360_NF025.sofa",
-#     "angle_spacings": [
-#         5,
-#         10,
-#         15,
-#         20,
-#         30,
-#         45,
-#     ],  # spacing of the reference points, degrees
-#     "interpolation_methods": ["direct", "nn", "dtw"],  # Methods to test
-#     "step_patterns": ["symmetricP2"],  # Allowed step patterns for DTW
-#     "ir_ds_factor": 6,  # downsampling factor for IRs
-#     "ir_range": range(0, 32),  # taps of the IR to consider in analysis
-#     "plot_sm_limits": [-40, 8],  # dB
-#     "plot_mag_limits": [-30, 0],  # dB
-#     "plot_nfft": 512,
-#     "export_figures": True,
-#     "export_results": True,
-# }
-
-# config = {
-#     "fn_output_prefix": "eval_spacing_",
-#     "fn_result_dir": "results/eval_tr/",
-#     "fn_figure_dir": "figures/eval_tr/",
-#     "dataset_path": "data/TASCAR_IRs/measured_irs_tr.npz",
-#     "mode": "tr",
-#     "spacing_fixpos": [
-#         2.5,
-#         5,
-#         10,
-#         15,
-#         25,
-#     ],  # spacing of the reference points, centimeters
-#     "interpolation_methods": ["direct", "nn", "dtw"],  # Methods to test
-#     "step_patterns": ["symmetricP2"],  # Allowed step patterns for DTW
-#     "ir_ds_factor": 6,  # downsampling factor for IRs
-#     "ir_range": range(0, 64),  # taps of the IR to consider in analysis
-#     "plot_sm_limits": [-40, 8],  # dB
-#     "plot_mag_limits": [-30, 0],  # dB
-#     "plot_nfft": 512,
-#     "export_figures": True,
-#     "export_results": True,
-# }
-
-# config = {
-#     "fn_output_prefix": "eval_steppattern_",
-#     "fn_result_dir": "results/",
-#     "fn_figure_dir": "figures/",
-#     "dataset_path": "data/THK_NF/HRIR_CIRC360_NF025.sofa",
-#     "angle_spacings": [
-#         20,
-#     ],  # spacing of the reference points, degrees
-#     "interpolation_methods": ["direct", "nn", "dtw"],  # Methods to test
-#     "step_patterns": [
-#         "symmetric1",
-#         "symmetric2",
-#         "symmetricP0",
-#         "symmetricP05",
-#         "symmetricP1",
-#         "symmetricP2",
-#     ],  # Allowed step patterns for DTW
-#     "ir_ds_factor": 6,  # downsampling factor for IRs
-#     "ir_range": range(0, 32),  # taps of the IR to consider in analysis
-#     "plot_sm_limits": [-40, 8],  # dB
-#     "plot_mag_limits": [-30, 0],  # dB
-#     "plot_nfft": 512,
-#     "export_figures": True,
-#     "export_results": True,
-# }
+import glob
 
 
 def load_npz_dataset(config: dict) -> tuple[np.ndarray, np.ndarray, float, range]:
@@ -138,8 +63,8 @@ def load_sofa_dataset(config: dict) -> tuple[np.ndarray, np.ndarray, float, rang
     -------
     irs : np.ndarray
         Impulse responses array
-    angles : np.ndarray
-        Angles array
+    positions : np.ndarray
+        Positions array
     fs : float
         Sampling frequency
     ir_range : range
@@ -147,18 +72,18 @@ def load_sofa_dataset(config: dict) -> tuple[np.ndarray, np.ndarray, float, rang
     """
     sofa_data = sf.read_sofa(config["dataset_path"], "r")
     irs = sofa_data.Data_IR
-    angles = 360 - sofa_data.SourcePosition[:, 0]  # Convert to intrinsic rotation
+    positions = 360 - sofa_data.SourcePosition[:, 0]  # Convert to intrinsic rotation
     fs = sofa_data.Data_SamplingRate
 
     # Sort by angle
-    sort_indices = np.argsort(angles)
+    sort_indices = np.argsort(positions)
     irs = irs[sort_indices, ...]
-    angles = np.round(angles[sort_indices]).astype(int)
+    positions = np.round(positions[sort_indices]).astype(int)
 
     # Duplicate 360° to 0°
-    if angles[0] != 0:
+    if positions[0] != 0:
         irs = np.concatenate((irs[[-1]], irs), axis=0)
-        angles = np.concatenate((np.array([0]), angles), axis=0)
+        positions = np.concatenate((np.array([0]), positions), axis=0)
 
     if config["ir_ds_factor"] > 1:
         irs_ds = signal.decimate(irs, config["ir_ds_factor"], axis=2, zero_phase=True)
@@ -475,14 +400,23 @@ def plot_mag_phase_error(
 
 
 def main():
-    # Load toml config from argument
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "-c", "--config", nargs="?", const=1, type=str, default="config.toml"
-    )
+    config_files = sorted(glob.glob("configs/*.toml"))
+    if not config_files:
+        print("No config files found in ./configs directory")
+        return
 
-    args = parser.parse_args()
-    config = toml.load(args.config)
+    # Process each config file
+    for config_file in config_files:
+        print(f"\n{'='*80}")
+        print(f"Processing config: {config_file}")
+        print(f"{'='*80}\n")
+
+        process_config(config_file)
+
+
+def process_config(config_path: str):
+    """Process a single config file"""
+    config = toml.load(config_path)
 
     # Create directories for figures and results
     os.makedirs(config["fn_figure_dir"], exist_ok=True)
@@ -635,7 +569,7 @@ def main():
                             "method": [method],
                             "step_pattern": [step_pattern_str],
                             "spacing": [
-                                angle_spacing,
+                                spacing_fixpos,
                             ],
                             "sm_overall": [
                                 sm_tmp_overall,
