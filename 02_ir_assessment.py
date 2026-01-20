@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import ScalarFormatter
 from utils import metrics
 import pandas as pd
+import os
 
 # global variables
 # config = {
@@ -34,24 +35,22 @@ import pandas as pd
 # }
 
 config = {
-    "fn_output_prefix": "eval_steppattern_",
-    "fn_result_dir": "results/",
-    "fn_figure_dir": "figures/",
-    "dataset_path": "data/THK_NF/HRIR_CIRC360_NF025.sofa",
-    "angle_spacings": [
-        20,
-    ],  # spacing of the reference points, degrees
+    "fn_output_prefix": "eval_spacing_",
+    "fn_result_dir": "results/eval_tr/",
+    "fn_figure_dir": "figures/eval_tr/",
+    "dataset_path": "data/TASCAR_IRs/measured_irs_tr.npz",
+    "mode": "tr",
+    "spacing_fixpos": [
+        2.5,
+        5,
+        10,
+        15,
+        25,
+    ],  # spacing of the reference points, centimeters
     "interpolation_methods": ["direct", "nn", "dtw"],  # Methods to test
-    "step_patterns": [
-        "symmetric1",
-        "symmetric2",
-        "symmetricP0",
-        "symmetricP05",
-        "symmetricP1",
-        "symmetricP2",
-    ],  # Allowed step patterns for DTW
+    "step_patterns": ["symmetricP2"],  # Allowed step patterns for DTW
     "ir_ds_factor": 6,  # downsampling factor for IRs
-    "ir_range": range(0, 32),  # taps of the IR to consider in analysis
+    "ir_range": range(0, 256),  # taps of the IR to consider in analysis
     "plot_sm_limits": [-40, 8],  # dB
     "plot_mag_limits": [-30, 0],  # dB
     "plot_nfft": 512,
@@ -59,30 +58,56 @@ config = {
     "export_results": True,
 }
 
+# config = {
+#     "fn_output_prefix": "eval_steppattern_",
+#     "fn_result_dir": "results/",
+#     "fn_figure_dir": "figures/",
+#     "dataset_path": "data/THK_NF/HRIR_CIRC360_NF025.sofa",
+#     "angle_spacings": [
+#         20,
+#     ],  # spacing of the reference points, degrees
+#     "interpolation_methods": ["direct", "nn", "dtw"],  # Methods to test
+#     "step_patterns": [
+#         "symmetric1",
+#         "symmetric2",
+#         "symmetricP0",
+#         "symmetricP05",
+#         "symmetricP1",
+#         "symmetricP2",
+#     ],  # Allowed step patterns for DTW
+#     "ir_ds_factor": 6,  # downsampling factor for IRs
+#     "ir_range": range(0, 32),  # taps of the IR to consider in analysis
+#     "plot_sm_limits": [-40, 8],  # dB
+#     "plot_mag_limits": [-30, 0],  # dB
+#     "plot_nfft": 512,
+#     "export_figures": True,
+#     "export_results": True,
+# }
 
-def load_npz_dataset(file_path: str) -> tuple[np.ndarray, np.ndarray, float]:
+
+def load_npz_dataset(config: dict) -> tuple[np.ndarray, np.ndarray, float]:
     """Load dataset from npz file
 
     Parameters
     ----------
-    file_path : str
-        Path to the npz file
+    config : dict
 
     Returns
     -------
     irs : np.ndarray
         Impulse responses array
-    angles : np.ndarray
-        Angles array
+    positions : np.ndarray
+        Positions array
     fs : float
         Sampling frequency
     """
-    ir_data = np.load(file_path)
+    ir_data = np.load(config["dataset_path"])
     irs = ir_data["irs"]
-    angles = np.round(ir_data["angles"]).astype(int)
+    irs = irs[:, :, config["ir_range"]]
+    positions = ir_data["positions"]
     fs = ir_data["fs"].item()
 
-    return irs, angles, fs
+    return irs, positions, fs
 
 
 def load_sofa_dataset(config: dict) -> tuple[np.ndarray, np.ndarray, float]:
@@ -124,38 +149,6 @@ def load_sofa_dataset(config: dict) -> tuple[np.ndarray, np.ndarray, float]:
 
     if config["ir_range"].stop > irs.shape[2]:
         config["ir_range"] = range(config["ir_range"].start, irs.shape[2])
-
-    # Plot IR dataset
-    hrir_to_plot = np.abs(irs[:, 0, config["ir_range"]])
-    hrir_to_plot /= np.max(hrir_to_plot)
-
-    t_axis = np.arange(len(config["ir_range"])) / fs * 1000  # in ms
-
-    plt.figure()
-    ax1 = plt.gca()
-    plt.pcolormesh(
-        angles,
-        t_axis,
-        20 * np.log10(hrir_to_plot.T + 1e-12),
-        shading="auto",
-        cmap="Greys",
-        vmin=-60,
-        vmax=0,
-    )
-    plt.colorbar(label="Magnitude (dB)", pad=0.15)
-    plt.title("IR dataset")
-    plt.xlabel("Angle (degrees)")
-    ax1.set_ylabel("Time (ms)")
-
-    # Add second y-axis with samples
-    ax2 = ax1.twinx()
-    ax2.set_ylim(config["ir_range"].start - 0.5, config["ir_range"].stop - 1.5)
-    ax2.set_ylabel("Samples")
-    ax2.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
-
-    if config["export_figures"]:
-        ds_name = config["dataset_path"].split("/")[-1].split(".")[0]
-        plt.savefig(f"figures/ir_{ds_name}.png", dpi=300)
 
     return irs, angles, fs
 
@@ -382,6 +375,7 @@ def plot_mag_phase_error(
     mag_error: np.ndarray,
     phase_error: np.ndarray,
     fs: float,
+    label_pos: str,
     export_figure: bool = False,
     export_figure_fn: str = "",
 ) -> None:
@@ -397,6 +391,8 @@ def plot_mag_phase_error(
         Phase error matrix (angles x frequencies)
     fs : float
         Sampling frequency
+    label_pos : str
+        Label for position axis
     export_figure : bool
         Whether to export the figure
     export_figure_fn : str
@@ -420,7 +416,7 @@ def plot_mag_phase_error(
     ax.yaxis.get_major_formatter().set_scientific(False)
     plt.colorbar(label="Magnitude error (dB)", extend="both")
     plt.title("Magnitude Error")
-    plt.xlabel("Source angle (degrees)")
+    plt.xlabel(label_pos)
     plt.ylabel("Frequency (Hz)")
     plt.ylim(10, fs / 2)
 
@@ -442,7 +438,7 @@ def plot_mag_phase_error(
     cbar.set_ticks([-90, 0, 90])
     cbar.set_ticklabels(["-90°", "0°", "90°"])
     plt.title("Phase Error")
-    plt.xlabel("Source angle (degrees)")
+    plt.xlabel(label_pos)
     plt.ylabel("Frequency (Hz)")
     plt.ylim(10, fs / 2)
     plt.tight_layout()
@@ -455,11 +451,51 @@ def plot_mag_phase_error(
 
 
 def main():
+    # Create directories for figures and results
+    os.makedirs(config["fn_figure_dir"], exist_ok=True)
+    os.makedirs(config["fn_result_dir"], exist_ok=True)
+
     # Import dataset
     if config["dataset_path"].endswith(".npz"):
-        irs, angles, fs = load_npz_dataset(config["dataset_path"])
+        irs, position, fs = load_npz_dataset(config)
     elif config["dataset_path"].endswith(".sofa"):
-        irs, angles, fs = load_sofa_dataset(config)
+        irs, position, fs = load_sofa_dataset(config)
+
+    label_pos = "Position (cm)" if config["mode"] == "tr" else "Angle (degrees)"
+
+    spacing_between_positions = position[1] - position[0]
+
+    # Plot IR dataset
+    hrir_to_plot = np.abs(irs[:, 0, config["ir_range"]])
+    hrir_to_plot /= np.max(hrir_to_plot)
+
+    t_axis = np.arange(len(config["ir_range"])) / fs * 1000  # in ms
+
+    plt.figure()
+    ax1 = plt.gca()
+    plt.pcolormesh(
+        position,
+        t_axis,
+        20 * np.log10(hrir_to_plot.T + 1e-12),
+        shading="auto",
+        cmap="Greys",
+        vmin=-60,
+        vmax=0,
+    )
+    plt.colorbar(label="Magnitude (dB)", pad=0.15)
+    plt.title("IR dataset")
+    plt.xlabel(label_pos)
+    ax1.set_ylabel("Time (ms)")
+
+    # Add second y-axis with samples
+    ax2 = ax1.twinx()
+    ax2.set_ylim(config["ir_range"].start - 0.5, config["ir_range"].stop - 1.5)
+    ax2.set_ylabel("Samples")
+    ax2.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
+
+    if config["export_figures"]:
+        ds_name = config["dataset_path"].split("/")[-1].split(".")[0]
+        plt.savefig(f"{config['fn_figure_dir']}/IR_dataset.png", dpi=300)
 
     results = None
 
@@ -468,9 +504,12 @@ def main():
     for method in config["interpolation_methods"]:
         step_patterns_to_use = config["step_patterns"] if method == "dtw" else [None]
         for step_pattern_str in step_patterns_to_use:
-            for angle_spacing in config["angle_spacings"]:
+            for spacing_fixpos in config["spacing_fixpos"]:
                 # Select reference positions based on angle spacing
-                ref_indices = np.where(angles % angle_spacing == 0)[0]
+                ref_indices = np.where(
+                    (position - position[0]) % spacing_fixpos < 1e-6
+                )[0]
+                positions_per_segment = ref_indices[1] - ref_indices[0]
                 ref_irs = np.squeeze(
                     irs[ref_indices, 0]
                 )  # Symmetric setup --> use one side only
@@ -480,9 +519,11 @@ def main():
                     step_pattern = select_step_pattern(step_pattern_str)
 
                 # Initialize temporary variables to store results
-                sm_tmp = np.zeros_like(angles, dtype=float)
-                mag_error_tmp = np.zeros((len(angles), config["plot_nfft"] // 2 + 1))
-                phase_error_tmp = np.zeros((len(angles), config["plot_nfft"] // 2 + 1))
+                sm_tmp = np.zeros_like(position, dtype=float)
+                mag_error_tmp = np.zeros((len(position), config["plot_nfft"] // 2 + 1))
+                phase_error_tmp = np.zeros(
+                    (len(position), config["plot_nfft"] // 2 + 1)
+                )
 
                 # Outer loop - iterate over all fixed positions
                 for ii in range(len(ref_indices) - 1):
@@ -498,8 +539,8 @@ def main():
                         )
 
                     # Inner loop - interpolate to all positions in between
-                    for jj in range(1, angle_spacing):
-                        alpha = 1 - jj / angle_spacing
+                    for jj in range(1, int(positions_per_segment)):
+                        alpha = 1 - jj / positions_per_segment
 
                         if method == "direct":
                             ir_interpolated = interpolate_ir_direct(
@@ -519,8 +560,10 @@ def main():
                             )
 
                         # Find target IR
-                        angle_target = angles[ref_indices[ii]] + jj
-                        idx_target = np.where(angles == angle_target)[0][0]
+                        position_target = position[ref_indices[ii] + jj]
+                        idx_target = np.where(
+                            np.abs(position - position_target) < 1e-6
+                        )[0][0]
                         ir_target = np.squeeze(irs[idx_target, 0, config["ir_range"]])
 
                         # Calculate system mismatch
@@ -531,8 +574,8 @@ def main():
                         # Calculate magnitude and phase error for plotting
                         (
                             f_axis,
-                            mag_error_tmp[ii * angle_spacing + jj],
-                            phase_error_tmp[ii * angle_spacing + jj],
+                            mag_error_tmp[ii * positions_per_segment + jj],
+                            phase_error_tmp[ii * positions_per_segment + jj],
                         ) = metrics.mag_phase_error(
                             ir_target,
                             ir_interpolated,
@@ -543,31 +586,54 @@ def main():
                         )
 
                 # Extract system mismatch per quadrant
-                sm_tmp_overall, sm_tmp_front, sm_tmp_back, sm_tmp_clat, sm_tmp_ilat = (
-                    extract_median_error_per_quadrant(
-                        sm_tmp, angles, angle_spacing, True
-                    )
-                )
+
                 sm_all.append(sm_tmp)
 
-                results_tmp = pd.DataFrame(
-                    {
-                        "method": [method],
-                        "step_pattern": [step_pattern_str],
-                        "spacing": [
-                            angle_spacing,
-                        ],
-                        "sm_overall": [
-                            sm_tmp_overall,
-                        ],
-                        "sm_front": [
-                            sm_tmp_front,
-                        ],
-                        "sm_back": [sm_tmp_back],
-                        "sm_clat": [sm_tmp_clat],
-                        "sm_ilat": [sm_tmp_ilat],
-                    }
-                )
+                if config["mode"] == "rot":
+                    (
+                        sm_tmp_overall,
+                        sm_tmp_front,
+                        sm_tmp_back,
+                        sm_tmp_clat,
+                        sm_tmp_ilat,
+                    ) = extract_median_error_per_quadrant(
+                        sm_tmp, position, spacing_fixpos, True
+                    )
+                    results_tmp = pd.DataFrame(
+                        {
+                            "method": [method],
+                            "step_pattern": [step_pattern_str],
+                            "spacing": [
+                                angle_spacing,
+                            ],
+                            "sm_overall": [
+                                sm_tmp_overall,
+                            ],
+                            "sm_front": [
+                                sm_tmp_front,
+                            ],
+                            "sm_back": [sm_tmp_back],
+                            "sm_clat": [sm_tmp_clat],
+                            "sm_ilat": [sm_tmp_ilat],
+                        }
+                    )
+
+                else:
+                    sm_tmp_overall = 20 * np.log10(
+                        np.median(sm_tmp[position % spacing_fixpos != 0])
+                    )
+                    results_tmp = pd.DataFrame(
+                        {
+                            "method": [method],
+                            "step_pattern": [step_pattern_str],
+                            "spacing": [
+                                spacing_fixpos,
+                            ],
+                            "sm_overall": [
+                                sm_tmp_overall,
+                            ],
+                        }
+                    )
 
                 if results is None:
                     results = results_tmp
@@ -581,39 +647,40 @@ def main():
                 if method == "dtw" and len(config["step_patterns"]) > 1:
                     fn = (
                         config["fn_figure_dir"]
-                        + f"fd_error_{method}_steppattern_{step_pattern_str}_spacing_{angle_spacing}deg.png"
+                        + f"fd_error_{method}_steppattern_{step_pattern_str}_spacing_{spacing_fixpos}.png"
                     )
                 else:
                     fn = (
                         config["fn_figure_dir"]
-                        + f"fd_error_{method}_spacing_{angle_spacing}deg.png"
+                        + f"fd_error_{method}_spacing_{spacing_fixpos}.png"
                     )
                 plot_mag_phase_error(
-                    angles,
+                    position,
                     mag_error_tmp,
                     phase_error_tmp,
                     fs,
+                    label_pos,
                     config["export_figures"],
                     fn,
                 )
 
     # Plot system mismatch
     reg_smplot = 10 ** (config["plot_sm_limits"][0] / 20)
-    if len(config["angle_spacings"]) > 1 and results is not None:
-        for angle_spacing in config["angle_spacings"]:
+    if len(config["spacing_fixpos"]) > 1 and results is not None:
+        for spacing_fixpos in config["spacing_fixpos"]:
             # Find all entry indices with the given angle spacing
             idx_dir = np.where(
-                (results["spacing"].to_numpy() == angle_spacing)
+                (results["spacing"].to_numpy() == spacing_fixpos)
                 & (results["method"].to_numpy() == "direct")
             )[0][0]
 
             idx_nn = np.where(
-                (results["spacing"].to_numpy() == angle_spacing)
+                (results["spacing"].to_numpy() == spacing_fixpos)
                 & (results["method"].to_numpy() == "nn")
             )[0][0]
 
             idx_dtw = np.where(
-                (results["spacing"].to_numpy() == angle_spacing)
+                (results["spacing"].to_numpy() == spacing_fixpos)
                 & (results["method"].to_numpy() == "dtw")
             )[0][0]
 
@@ -635,20 +702,20 @@ def main():
             # Plot results for system mismatch
             plt.figure()
 
-            plt.plot(angles, sm_nn, label="NN")
-            plt.plot(angles, sm_dir, label="Direct")
-            plt.plot(angles, sm_dtw, label="DTW")
-            plt.xlabel("Source angle (degrees)")
+            plt.plot(position, sm_nn, label="NN")
+            plt.plot(position, sm_dir, label="Direct")
+            plt.plot(position, sm_dtw, label="DTW")
+            plt.xlabel(label_pos)
             plt.ylabel("System mismatch (dB)")
             plt.ylim(config["plot_sm_limits"])
-            plt.title(f"System mismatch of interpolated IRs, spacing {angle_spacing}°")
+            plt.title(f"System mismatch of interpolated IRs, spacing {spacing_fixpos}")
             plt.legend()
             plt.grid()
 
             if config["export_figures"]:
                 fn = (
                     config["fn_figure_dir"]
-                    + f"system_mismatch_spacing_{angle_spacing}deg.png"
+                    + f"system_mismatch_spacing_{spacing_fixpos}.png"
                 )
                 plt.savefig(
                     fn,
@@ -661,7 +728,7 @@ def main():
         plt.figure()
         for idx in idx_dtw:
             step_pattern_str = results["step_pattern"].to_numpy()[idx]
-            angle_spacing = results["spacing"].to_numpy()[idx]
+            spacing_fixpos = results["spacing"].to_numpy()[idx]
 
             # Extract corresponding system mismatch arrays
             sm_dtw = sm_all[idx]
@@ -674,11 +741,11 @@ def main():
 
             # Plot results for system mismatch
             plt.plot(
-                angles,
+                position,
                 sm_dtw,
                 label=f"DTW ({step_pattern_str})",
             )
-        plt.xlabel("Source angle (degrees)")
+        plt.xlabel(label_pos)
         plt.ylabel("System mismatch (dB)")
         plt.ylim(config["plot_sm_limits"])
         plt.title(f"System mismatch of interpolated IRs - DTW step patterns")
@@ -688,7 +755,7 @@ def main():
         if config["export_figures"]:
             fn = (
                 config["fn_figure_dir"]
-                + f"system_mismatch_dtw_steppatterns_spacing_{config['angle_spacings'][0]}.png"
+                + f"system_mismatch_dtw_steppatterns_spacing_{config['spacing_fixpos'][0]}.png"
             )
             plt.savefig(
                 fn,

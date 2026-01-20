@@ -7,13 +7,13 @@ from tqdm import tqdm
 from lxml import objectify, etree
 
 # Define global parameters
-sec_src_coords = [-0.25, 0.0, 0.0]
+sec_src_coords = [0.0, 0.0, 0.0]
 sec_src_gain = -20.0
-positions_to_test = np.arange(0, 0.5, 0.005, dtype=float)
+positions_to_test = np.arange(0.25, 1.005, 0.005, dtype=float)
 fs = 48000
 ir_length = 512
 n_jobs = 8
-sinc_order = 0
+sinc_order = 4
 
 
 def generate_tascar_project(position: float = 0.0) -> str:
@@ -47,10 +47,10 @@ def generate_tascar_project(position: float = 0.0) -> str:
         name="hrtf_receiver",
         type="hrtf",
         nf_filter="true",
-        # sincorder=str(sinc_order),
+        sincorder=str(sinc_order),
         # prewarpingmode="2",
     )
-    pos = objectify.SubElement(rec, "position")._setText(f"{position} 0 0")
+    pos = objectify.SubElement(rec, "position")._setText(f"0 {position} 0 0")
 
     # Remove annotations from root
     objectify.deannotate(root, xsi_nil=True)
@@ -128,7 +128,7 @@ def main():
     np.savez(
         "data/TASCAR_IRs/measured_irs_tr.npz",
         irs=irs,
-        positions=positions_to_test,
+        positions=positions_to_test * 100,  # save in cm
         fs=fs,
     )
 
