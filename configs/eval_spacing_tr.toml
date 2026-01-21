@@ -5,6 +5,7 @@ dataset_path = "data/TASCAR_IRs/measured_irs_tr.npz"
 mode = "tr"
 spacing_fixpos = [2.5, 5.0, 10.0, 15.0, 25.0]  # spacing of the reference points, centimeters
 interpolation_methods = ["direct", "nn", "dtw"]  # Methods to test
+dewarping_interpolator = "cs"  # Interpolator to extract values at integer positions after dewarping
 step_patterns = ["symmetricP2"]  # Allowed step patterns for DTW
 ir_ds_factor = 6  # downsampling factor for IRs
 ir_range = [0, 64]  # taps of the IR to consider in analysis (was: range(0, 64))

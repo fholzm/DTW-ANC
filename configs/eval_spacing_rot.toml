@@ -5,6 +5,7 @@ dataset_path = "data/THK_NF/HRIR_CIRC360_NF025.sofa"
 mode = "rot"
 spacing_fixpos = [5, 10, 15, 20, 30, 45]  # spacing of the reference points, centimeters
 interpolation_methods = ["direct", "nn", "dtw"]  # Methods to test
+dewarping_interpolator = "cs"  # Interpolator to extract values at integer positions after dewarping
 step_patterns = ["symmetricP2"]  # Allowed step patterns for DTW
 ir_ds_factor = 6  # downsampling factor for IRs
 ir_range = [0, 32]  # taps of the IR to consider in analysis (was: range(0, 64))

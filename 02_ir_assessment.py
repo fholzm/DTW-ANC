@@ -179,6 +179,7 @@ def interpolate_ir_dtw(
     displacement_pos0: np.ndarray,
     displacement_pos1: np.ndarray,
     alpha: float,
+    dewarping_interpolator: str = "cs",
 ) -> np.ndarray:
     """Interpolate between two impulse responses using DTW-based warping, based on warping a single IR
 
@@ -198,6 +199,9 @@ def interpolate_ir_dtw(
         Displacement vector used for warping at position 1
     alpha : float
         Interpolation factor (0 = position 1, 1 = position 0)
+    dewarping_interpolator : str
+        Interpolator to extract values at integer positions after dewarping
+
     Returns
     -------
     ir_interpolated : np.ndarray
@@ -217,8 +221,19 @@ def interpolate_ir_dtw(
         idx_dewarping = np.arange(len(ir_pos0)) - displacement_pos0 * (alpha)
 
     # Apply spline interpolation to get samples at integer-indices
-    cs = CubicSpline(idx_dewarping, ir_interpolated_warped)
-    ir_interpolated = cs(np.arange(len(ir_interpolated_warped)))
+    if dewarping_interpolator == "cs":
+        interpolator = CubicSpline(idx_dewarping, ir_interpolated_warped)
+        ir_interpolated = interpolator(np.arange(len(ir_interpolated_warped)))
+    elif dewarping_interpolator == "lin":
+        ir_interpolated = np.interp(
+            np.arange(len(ir_interpolated_warped)),
+            idx_dewarping,
+            ir_interpolated_warped,
+        )
+    else:
+        raise ValueError(
+            f"Unknown dewarping_interpolator: {dewarping_interpolator}. Supported values are 'cs' and 'lin'."
+        )
 
     return ir_interpolated
 
@@ -522,6 +537,7 @@ def process_config(config_path: str):
                                 displacement_pos0,
                                 displacement_pos1,
                                 alpha,
+                                config["dewarping_interpolator"],
                             )
 
                         # Find target IR
