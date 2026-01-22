@@ -46,13 +46,10 @@ double get_alpha (double position)
     return static_cast<double> (ir_positions.size() - 1);
 }
 
-float interpolate_direct (float alpha, int index)
+double interpolate_direct (double alpha, int index)
 {
     // Sanitize input index
     index = std::max (0, std::min (index, static_cast<int> (irs_clean[0].size() - 1)));
-
-    // cast alpha to double for better precision in calculations
-    alpha = static_cast<double> (alpha);
 
     // Extract IR indices and alpha for interpolation
     int upper_ir_idx =
@@ -61,11 +58,11 @@ float interpolate_direct (float alpha, int index)
 
     alpha -= static_cast<double> (lower_ir_idx);
 
-    return static_cast<float> ((1.0 - alpha) * irs_clean[lower_ir_idx][index]
-                               + alpha * irs_clean[upper_ir_idx][index]);
+    return ((1.0 - alpha) * irs_clean[lower_ir_idx][index]
+            + alpha * irs_clean[upper_ir_idx][index]);
 }
 
-float interpolate_nn (float alpha, int index)
+double interpolate_nn (double alpha, int index)
 {
     // Nearest neighbor interpolation
     int ir_idx = static_cast<int> (std::round (alpha));
@@ -74,5 +71,5 @@ float interpolate_nn (float alpha, int index)
     // Sanitize input index
     index = std::max (0, std::min (index, static_cast<int> (irs_clean[0].size() - 1)));
 
-    return static_cast<float> (irs_clean[ir_idx][index]);
+    return irs_clean[ir_idx][index];
 }
