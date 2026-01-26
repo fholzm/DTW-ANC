@@ -32,13 +32,35 @@ static const std::vector<std::vector<double>> irs_clean = { { 1.0, 1.0, 0.0, 0.0
                                                             { 1.0, 0.0, 0.0, 1.0, 0.0 },
                                                             { 1.0, 0.0, 0.0, 0.0, 1.0 } };
 
+static const std::vector<std::vector<double>> irs_upper_warped = {
+    { 0.0, 0.0, 0.0, 0.0, 0.0 },
+    { 0.9, 0.1, 0.8, -0.2, 0.1 },
+    { 1.1, -0.1, 0.0, 0.9, 0.2 },
+    { 0.95, 0.05, -0.05, 0.1, 1.05 }
+};
+
+static const std::vector<std::vector<double>> irs_lower_warped = { { 0.9, 0.1, 0.8, -0.2, 0.1 },
+                                                                   { 1.1, -0.1, 0.0, 0.9, 0.2 },
+                                                                   { 0.95, 0.05, -0.05, 0.1, 1.05 },
+                                                                   { 0.0, 0.0, 0.0, 0.0, 0.0 } };
+
+static const std::vector<std::vector<double>> displacement_upper = { { 0.0, 1.0, 0.0, 0.0, 0.0 },
+                                                                     { 0.0, 0.0, 1.0, 0.0, 0.0 },
+                                                                     { 0.0, 0.0, 0.0, 1.0, 0.0 },
+                                                                     { 0.0, 0.0, 0.0, 0.0, 1.0 } };
+
+static const std::vector<std::vector<double>> displacement_lower = { { 0.0, 1.0, 0.0, 0.0, 0.0 },
+                                                                     { 0.0, 0.0, 1.0, 0.0, 0.0 },
+                                                                     { 0.0, 0.0, 0.0, 1.0, 0.0 },
+                                                                     { 0.0, 0.0, 0.0, 0.0, 1.0 } };
+
 // Positions corresponding to the impulse responses
 static const std::vector<double> ir_positions = { 0.0, 0.33, 0.66, 1.0 };
 
-static const std::vector<double> X = { 0.0, 0.8, 1.7, 2.6, 4.0 };
-static const std::vector<double> Y = { 1.0, -0.6, 0.2, 0.9, 1.0 };
+std::vector<double> ir_index_warped = { 0.0, 1.0, 2.0, 3.0, 4.0 };
+std::vector<double> ir_interpolated_warped = { 1.0, -0.6, 0.2, 0.9, 1.0 };
 
-tk::spline s (X, Y);
+tk::spline s (ir_index_warped, ir_interpolated_warped);
 
 double get_alpha (double position)
 {
@@ -100,22 +122,61 @@ double interpolate_nn (double alpha, int index)
     return irs_clean[ir_idx][index];
 }
 
-double interpolate_spline_test (int index)
+double interpolate_dtw (double alpha, int index)
 {
-    if (index == 0)
+    // Sanitize input index
+    index = std::max (0, std::min (index, static_cast<int> (irs_clean[0].size() - 1)));
+
+    // Extract IR indices and alpha for interpolation
+    int upper_ir_idx =
+        std::min (static_cast<int> (alpha) + 1, static_cast<int> (ir_positions.size()) - 1);
+    int lower_ir_idx = std::max (0, std::min (static_cast<int> (alpha), upper_ir_idx));
+
+    alpha -= static_cast<double> (lower_ir_idx);
+
+    // Interpolate only once at first call for index 0
+    if (index == 0 && alpha > 0.0 && alpha < 1.0)
     {
-        s = tk::spline (X,
-                        Y,
+        // Select which warped IR to use
+        const std::vector<double>* ir_pos0;
+        const std::vector<double>* ir_pos1;
+        const std::vector<double>* displacement;
+
+        if (alpha < 0.5)
+        {
+            ir_pos0 = &irs_clean[lower_ir_idx];
+            ir_pos1 = &irs_upper_warped[upper_ir_idx];
+            displacement = &displacement_upper[upper_ir_idx];
+        }
+        else
+        {
+            ir_pos0 = &irs_lower_warped[lower_ir_idx];
+            ir_pos1 = &irs_clean[upper_ir_idx];
+            displacement = &displacement_lower[lower_ir_idx];
+        }
+
+        // Linear interpolate original and warped IRs
+        for (size_t n = 0; n < ir_interpolated_warped.size(); ++n)
+        {
+            ir_interpolated_warped[n] = (1.0 - alpha) * (*ir_pos0)[n] + alpha * (*ir_pos1)[n];
+
+            // Calculate filter tap indices for dewarping
+            ir_index_warped[n] = static_cast<double> (n)
+                                 - ((*displacement)[n] * ((alpha < 0.5) ? (1.0 - alpha) : alpha));
+        }
+
+        // Initiate new spline
+
+        s = tk::spline (ir_index_warped,
+                        ir_interpolated_warped,
                         tk::spline::cspline,
                         false,
-                        tk::spline::not_a_knot,
+                        tk::spline::first_deriv,
                         0.0,
-                        tk::spline::not_a_knot,
+                        tk::spline::first_deriv,
                         0.0);
     }
 
-    double y_interp = s (static_cast<double> (index));
-
-    std::cout << "Spline interp at " << index << ": " << y_interp << std::endl;
-    return y_interp;
+    // Evaluate spline at given index
+    return s (static_cast<double> (index));
 }

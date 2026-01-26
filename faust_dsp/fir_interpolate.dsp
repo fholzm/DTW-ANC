@@ -3,10 +3,10 @@ import("stdfaust.lib");
 IR_SIZE = 5;
 
 // interpolate_c = ffunction( float interpolate_nn(float, int), "interpolator.h", "");
-interpolate_c = ffunction( float interpolate_direct(float, int), "interpolator.h", "");
+interpolate_c = ffunction( float interpolate_dtw(float, int), "interpolator.h", "");
 get_alpha_c = ffunction( float get_alpha(float), "interpolator.h", "");
 
-position = hslider("position", 0.0, 0.0, 1.0, 0.001);
+position = hslider("position", 0.0, 0.0, 1.0, 0.001) : si.smoo;
 
 alpha = get_alpha_c(position);
 // index = hslider("index", 0, 0, IR_SIZE - 1, 1);
