@@ -42,4 +42,7 @@ RUN apt-add-repository 'deb [arch=amd64] http://apt.hoertech.de noble universe'
 RUN apt-get update -q
 RUN apt-get install -y -q tascarpro
 
+COPY .devcontainer/start_jack.sh /usr/local/bin/start_jack.sh
+RUN chmod +x /usr/local/bin/start_jack.sh
+
 COPY --from=uv --chown=vscode: /uv /uvx /bin/

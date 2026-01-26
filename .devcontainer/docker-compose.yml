@@ -1,13 +1,26 @@
 services:
   vscode:
+    shm_size: "512m"   # or "512m"
     build:
       context: ..
       dockerfile: .devcontainer/Dockerfile
       args:
         UV_VERSION: latest
-    command: "sleep infinity"
+    command: ["/usr/local/bin/start_jack.sh"]
     ports:
       - "8000:8000"
     user: vscode
     volumes:
       - ..:/workspace:cached
+    cap_add:
+      - IPC_LOCK
+      - SYS_NICE
+    security_opt:
+      - seccomp=unconfined
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      rtprio:
+        soft: 99
+        hard: 99
