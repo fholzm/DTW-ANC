@@ -165,8 +165,7 @@ double interpolate_dtw (double alpha, int index)
                                  - ((*displacement)[n] * ((alpha < 0.5) ? (1.0 - alpha) : alpha));
         }
 
-        // Initiate new spline
-
+        // Update spline
         s = tk::spline (ir_index_warped,
                         ir_interpolated_warped,
                         tk::spline::cspline,

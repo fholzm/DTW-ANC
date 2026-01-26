@@ -10,10 +10,10 @@ from lxml import objectify, etree
 sec_src_coords = [0.0, 0.0, 0.0]
 sec_src_gain = -20.0
 positions_to_test = np.arange(0.25, 1.005, 0.005, dtype=float)
-fs = 48000
+fs = 16000
 ir_length = 512
 n_jobs = 8
-sinc_order = 4
+sinc_order = 1
 
 
 def generate_tascar_project(position: float = 0.0) -> str:
