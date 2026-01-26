@@ -1,11 +1,8 @@
 import numpy as np
-from scipy.interpolate import CubicSpline
 from scipy import signal
 import sofar as sf
-import dtw
 import matplotlib.pyplot as plt
-from matplotlib.ticker import ScalarFormatter
-from utils import metrics
+from utils import metrics, interpolate
 import pandas as pd
 import os
 import toml
@@ -100,322 +97,6 @@ def load_sofa_dataset(config: dict) -> tuple[np.ndarray, np.ndarray, float, rang
     return irs, positions, fs, ir_range
 
 
-def select_step_pattern(step_pattern_name: str) -> dtw.StepPattern:
-    """Select DTW step pattern based on name
-
-    Parameters
-    ----------
-    step_pattern_name : str
-        Name of the step pattern as defined in the dtw package
-    Returns
-    -------
-    step_pattern : dtw.StepPattern
-        Selected step pattern
-    """
-
-    if step_pattern_name == "symmetric1":
-        step_pattern = dtw.symmetric1
-    elif step_pattern_name == "symmetric2":
-        step_pattern = dtw.symmetric2
-    elif step_pattern_name == "symmetricP0":
-        step_pattern = dtw.symmetricP0
-    elif step_pattern_name == "symmetricP05":
-        step_pattern = dtw.symmetricP05
-    elif step_pattern_name == "symmetricP1":
-        step_pattern = dtw.symmetricP1
-    elif step_pattern_name == "symmetricP2":
-        step_pattern = dtw.symmetricP2
-    else:
-        raise ValueError(f"Unknown step pattern: {step_pattern_name}")
-
-    # TODO: Add Rabiner-Juang patterns
-
-    return step_pattern
-
-
-def calculate_dtw(
-    ir_query: np.ndarray, ir_reference: np.ndarray, stepPattern: dtw.StepPattern
-) -> tuple[np.ndarray, np.ndarray]:
-    """Calculate DTW alignment between two impulse responses
-
-    Parameters
-    ----------
-    ir_query : np.ndarray
-        Impulse response to be warped
-    ir_reference : np.ndarray
-        Reference impulse response to warp to
-    stepPattern : dtw.StepPattern
-        Allowed step pattern for the DTW
-
-    Returns
-    -------
-    ir_query_warped: np.ndarray
-        Warped impulse response
-    displacement: np.ndarray
-        Displacement vector used for warping
-    """
-    # Calculate DTW between two IRs
-    alignment = dtw.dtw(
-        ir_query, ir_reference, step_pattern=stepPattern, keep_internals=True
-    )
-
-    # Obtain updated indices to warp query IR
-    wq = dtw.warp(alignment, index_reference=False)
-
-    # Warp query IR
-    ir_query_warped = ir_query[wq]
-
-    # Extract dipslacement, used to reconstruct time axis
-    displacement = np.arange(len(ir_query)) - wq
-
-    return ir_query_warped, displacement
-
-
-def interpolate_ir_dtw(
-    ir_pos0: np.ndarray,
-    ir_pos1: np.ndarray,
-    ir_pos0_warped: np.ndarray,
-    ir_pos1_warped: np.ndarray,
-    displacement_pos0: np.ndarray,
-    displacement_pos1: np.ndarray,
-    alpha: float,
-    dewarping_interpolator: str = "cs",
-) -> np.ndarray:
-    """Interpolate between two impulse responses using DTW-based warping, based on warping a single IR
-
-    Parameters
-    ----------
-    ir_pos0 : np.ndarray
-        Impulse response at position 0
-    ir_pos1 : np.ndarray
-        Impulse response at position 1
-    ir_pos0_warped : np.ndarray
-        Warped impulse response at position 0
-    ir_pos1_warped : np.ndarray
-        Warped impulse response at position 1
-    displacement_pos0 : np.ndarray
-        Displacement vector used for warping at position 0
-    displacement_pos1 : np.ndarray
-        Displacement vector used for warping at position 1
-    alpha : float
-        Interpolation factor (0 = position 1, 1 = position 0)
-    dewarping_interpolator : str
-        Interpolator to extract values at integer positions after dewarping
-
-    Returns
-    -------
-    ir_interpolated : np.ndarray
-        Interpolated impulse response
-    """
-
-    # Linear interpolation of warped IRs
-    if alpha >= 0.5:
-        ir_interpolated_warped = alpha * ir_pos0 + (1 - alpha) * ir_pos1_warped
-
-        # Find updated indices for de-warping
-        idx_dewarping = np.arange(len(ir_pos0)) - displacement_pos1 * (1 - alpha)
-    else:
-        ir_interpolated_warped = alpha * ir_pos0_warped + (1 - alpha) * ir_pos1
-
-        # Find updated indices for de-warping
-        idx_dewarping = np.arange(len(ir_pos0)) - displacement_pos0 * (alpha)
-
-    # Apply spline interpolation to get samples at integer-indices
-    if dewarping_interpolator == "cs":
-        interpolator = CubicSpline(
-            idx_dewarping, ir_interpolated_warped, bc_type="natural"
-        )
-        ir_interpolated = interpolator(np.arange(len(ir_interpolated_warped)))
-    elif dewarping_interpolator == "lin":
-        ir_interpolated = np.interp(
-            np.arange(len(ir_interpolated_warped)),
-            idx_dewarping,
-            ir_interpolated_warped,
-        )
-    else:
-        raise ValueError(
-            f"Unknown dewarping_interpolator: {dewarping_interpolator}. Supported values are 'cs' and 'lin'."
-        )
-
-    return ir_interpolated
-
-
-def interpolate_ir_direct(
-    ir_pos0: np.ndarray, ir_pos1: np.ndarray, alpha: float
-) -> np.ndarray:
-    """Interpolate between two impulse responses using direct linear interpolation
-    Parameters
-
-    ----------
-    ir_pos0 : np.ndarray
-        Impulse response at position 0
-    ir_pos1 : np.ndarray
-        Impulse response at position 1
-    alpha : float
-        Interpolation factor (0 = position 1, 1 = position 0)
-
-    Returns
-    -------
-    ir_interpolated : np.ndarray
-        Interpolated impulse response
-    """
-
-    ir_interpolated = alpha * ir_pos0 + (1 - alpha) * ir_pos1
-    return ir_interpolated
-
-
-def interpolate_ir_nn(
-    ir_pos0: np.ndarray, ir_pos1: np.ndarray, alpha: float
-) -> np.ndarray:
-    """Interpolate between two impulse responses using nearest neighbor interpolation
-
-    Parameters
-    ----------
-    ir_pos0 : np.ndarray
-        Impulse response at position 0
-    ir_pos1 : np.ndarray
-        Impulse response at position 1
-    alpha : float
-        Interpolation factor (0 = position 1, 1 = position 0)
-
-    Returns
-    -------
-    ir_interpolated : np.ndarray
-        Interpolated impulse response
-    """
-
-    ir_interpolated = ir_pos0 if alpha >= 0.5 else ir_pos1
-    return ir_interpolated
-
-
-def extract_median_error_per_quadrant(
-    sm_values: np.ndarray, angles: np.ndarray, angle_spacing: int, in_db: bool = False
-) -> tuple[float, float, float, float, float]:
-    """Calculate the median system mismatch per quadrant on all interpolated positions
-
-    Parameters
-    ----------
-    sm_values : np.ndarray
-        system mismatch values
-    angles : np.ndarray
-        angles corresponding to the system mismatch values
-    angle_spacing : int
-        angle spacing used for reference positions
-
-    Returns
-    -------
-    tuple[float,float, float, float, float]
-        median system mismatch values overall and for front, back, contralateral, and ipsilateral quadrants
-    """
-
-    indices_interpolated = angles % angle_spacing != 0
-
-    index_mask_front = (
-        ((angles >= 315) & (angles < 360)) | (angles <= 45)
-    ) & indices_interpolated
-
-    index_mask_back = (angles >= 135) & (angles <= 225) & indices_interpolated
-    index_mask_clat = (angles >= 45) & (angles <= 135) & indices_interpolated
-    index_mask_ilat = (angles >= 225) & (angles <= 315) & indices_interpolated
-
-    sm_overall = np.median(sm_values[indices_interpolated])
-    sm_front = np.median(sm_values[index_mask_front])
-    sm_back = np.median(sm_values[index_mask_back])
-    sm_clat = np.median(sm_values[index_mask_clat])
-    sm_ilat = np.median(sm_values[index_mask_ilat])
-
-    if in_db:
-        sm_overall = 20 * np.log10(sm_overall)
-        sm_front = 20 * np.log10(sm_front)
-        sm_back = 20 * np.log10(sm_back)
-        sm_clat = 20 * np.log10(sm_clat)
-        sm_ilat = 20 * np.log10(sm_ilat)
-
-    return sm_overall, sm_front, sm_back, sm_clat, sm_ilat
-
-
-def plot_mag_phase_error(
-    angles: np.ndarray,
-    mag_error: np.ndarray,
-    phase_error: np.ndarray,
-    fs: float,
-    config: dict,
-    export_figure: bool = False,
-    export_figure_fn: str = "",
-) -> None:
-    """Plot magnitude and phase error for interpolated IRs
-
-    Parameters
-    ----------
-    angles : np.ndarray
-        Angles array
-    mag_error : np.ndarray
-        Magnitude error matrix (angles x frequencies)
-    phase_error : np.ndarray
-        Phase error matrix (angles x frequencies)
-    fs : float
-        Sampling frequency
-    config : dict
-        Configuration dictionary
-    export_figure : bool
-        Whether to export the figure
-    export_figure_fn : str
-        Filename for exporting the figure
-    """
-    label_pos = "Position (cm)" if config["mode"] == "tr" else "Angle (degrees)"
-
-    freq = np.linspace(0, fs / 2, config["plot_nfft"] // 2 + 1)
-
-    plt.figure()
-    plt.subplot(2, 1, 1)
-    plt.pcolormesh(
-        angles,
-        freq,
-        20 * np.log10(mag_error.T + 1e-12),
-        vmax=config["plot_mag_limits"][1],
-        vmin=config["plot_mag_limits"][0],
-        shading="auto",
-    )
-    plt.yscale("log")
-    ax = plt.gca()
-    ax.yaxis.set_major_formatter(ScalarFormatter())
-    ax.yaxis.get_major_formatter().set_scientific(False)
-    plt.colorbar(label="Magnitude error (dB)", extend="both")
-    plt.title("Magnitude Error")
-    plt.xlabel(label_pos)
-    plt.ylabel("Frequency (Hz)")
-    plt.ylim(10, fs / 2)
-
-    plt.subplot(2, 1, 2)
-    plt.pcolormesh(
-        angles,
-        freq,
-        np.rad2deg(phase_error.T),
-        vmin=-90,
-        vmax=90,
-        cmap="seismic",
-        shading="auto",
-    )
-    plt.yscale("log")
-    ax = plt.gca()
-    ax.yaxis.set_major_formatter(ScalarFormatter())
-    ax.yaxis.get_major_formatter().set_scientific(False)
-    cbar = plt.colorbar(label="Phase error (degrees)", extend="both")
-    cbar.set_ticks([-90, 0, 90])
-    cbar.set_ticklabels(["-90°", "0°", "90°"])
-    plt.title("Phase Error")
-    plt.xlabel(label_pos)
-    plt.ylabel("Frequency (Hz)")
-    plt.ylim(10, fs / 2)
-    plt.tight_layout()
-
-    if export_figure and export_figure_fn != "":
-        plt.savefig(
-            export_figure_fn,
-            dpi=300,
-        )
-
-
 def main():
     config_files = sorted(glob.glob("configs/*.toml"))
     if not config_files:
@@ -498,7 +179,7 @@ def process_config(config_path: str):
 
                 # Select desired step pattern for dtw
                 if method == "dtw":
-                    step_pattern = select_step_pattern(step_pattern_str)
+                    step_pattern = interpolate.select_step_pattern(step_pattern_str)
 
                 # Initialize temporary variables to store results
                 sm_tmp = np.zeros_like(position, dtype=float)
@@ -513,10 +194,10 @@ def process_config(config_path: str):
                     ir_pos1 = ref_irs[ii + 1]
 
                     if method == "dtw":
-                        ir_pos0_warped, displacement_pos0 = calculate_dtw(
+                        ir_pos0_warped, displacement_pos0 = interpolate.calculate_dtw(
                             ir_pos0, ir_pos1, step_pattern
                         )
-                        ir_pos1_warped, displacement_pos1 = calculate_dtw(
+                        ir_pos1_warped, displacement_pos1 = interpolate.calculate_dtw(
                             ir_pos1, ir_pos0, step_pattern
                         )
 
@@ -525,13 +206,15 @@ def process_config(config_path: str):
                         alpha = 1 - jj / positions_per_segment
 
                         if method == "direct":
-                            ir_interpolated = interpolate_ir_direct(
+                            ir_interpolated = interpolate.interpolate_ir_direct(
                                 ir_pos0, ir_pos1, alpha
                             )
                         elif method == "nn":
-                            ir_interpolated = interpolate_ir_nn(ir_pos0, ir_pos1, alpha)
+                            ir_interpolated = interpolate.interpolate_ir_nn(
+                                ir_pos0, ir_pos1, alpha
+                            )
                         elif method == "dtw":
-                            ir_interpolated = interpolate_ir_dtw(
+                            ir_interpolated = interpolate.interpolate_ir_dtw(
                                 ir_pos0,
                                 ir_pos1,
                                 ir_pos0_warped,
@@ -579,7 +262,7 @@ def process_config(config_path: str):
                         sm_tmp_back,
                         sm_tmp_clat,
                         sm_tmp_ilat,
-                    ) = extract_median_error_per_quadrant(
+                    ) = metrics.extract_median_error_per_quadrant(
                         sm_tmp, position, spacing_fixpos, True
                     )
                     results_tmp = pd.DataFrame(
@@ -637,7 +320,7 @@ def process_config(config_path: str):
                         config["fn_figure_dir"]
                         + f"fd_error_{method}_spacing_{spacing_fixpos}.png"
                     )
-                plot_mag_phase_error(
+                metrics.plot_mag_phase_error(
                     position,
                     mag_error_tmp,
                     phase_error_tmp,
