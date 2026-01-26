@@ -1,3 +1,24 @@
+/*
+ ==============================================================================
+Time-aligned secondary path interpolation for ANC
+Copyright (C) 2026  Felix Holzmüller <holzmueller@iem.at>
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+==============================================================================
+*/
+
+#include "lib/spline.h"
 #include <algorithm>
 #include <cmath>
 #include <iostream>
@@ -13,6 +34,11 @@ static const std::vector<std::vector<double>> irs_clean = { { 1.0, 1.0, 0.0, 0.0
 
 // Positions corresponding to the impulse responses
 static const std::vector<double> ir_positions = { 0.0, 0.33, 0.66, 1.0 };
+
+static const std::vector<double> X = { 0.0, 0.8, 1.7, 2.6, 4.0 };
+static const std::vector<double> Y = { 1.0, -0.6, 0.2, 0.9, 1.0 };
+
+tk::spline s (X, Y);
 
 double get_alpha (double position)
 {
@@ -72,4 +98,24 @@ double interpolate_nn (double alpha, int index)
     index = std::max (0, std::min (index, static_cast<int> (irs_clean[0].size() - 1)));
 
     return irs_clean[ir_idx][index];
+}
+
+double interpolate_spline_test (int index)
+{
+    if (index == 0)
+    {
+        s = tk::spline (X,
+                        Y,
+                        tk::spline::cspline,
+                        false,
+                        tk::spline::not_a_knot,
+                        0.0,
+                        tk::spline::not_a_knot,
+                        0.0);
+    }
+
+    double y_interp = s (static_cast<double> (index));
+
+    std::cout << "Spline interp at " << index << ": " << y_interp << std::endl;
+    return y_interp;
 }
