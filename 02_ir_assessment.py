@@ -222,7 +222,9 @@ def interpolate_ir_dtw(
 
     # Apply spline interpolation to get samples at integer-indices
     if dewarping_interpolator == "cs":
-        interpolator = CubicSpline(idx_dewarping, ir_interpolated_warped)
+        interpolator = CubicSpline(
+            idx_dewarping, ir_interpolated_warped, bc_type="natural"
+        )
         ir_interpolated = interpolator(np.arange(len(ir_interpolated_warped)))
     elif dewarping_interpolator == "lin":
         ir_interpolated = np.interp(
