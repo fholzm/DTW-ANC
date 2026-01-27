@@ -1,29 +1,25 @@
 <?xml version='1.0' encoding='utf-8'?>
 <session attribution="Felix Holzmüller" duration="35" license="GPLv3">
   <scene name="ir_pos0.000" guiscale="6" ismorder="0">
-    <source name="sec_source_0">
+    <source name="sec_source">
       <sound type="omni" gain="-20.0" sincorder="1"/>
-      <position>0 -0.17677669529663687 -0.17677669529663687 0.0</position>
-    </source>
-    <source name="sec_source_1">
-      <sound type="omni" gain="-20.0" sincorder="1"/>
-      <position>0 -0.17677669529663687 0.17677669529663687 0.0</position>
+      <position>0 0.0 0.0 0.0</position>
     </source>
 
     <source name="prim_source">
       <sound type="omni" gain="-20.0" sincorder="1"/>
-      <position>0 2.0 0.0 0.0</position>
+      <position>0 3.0 0.0 0.0</position>
     </source>
 
     <receiver name="hrtf_receiver" type="hrtf" nf_filter="true" sincorder="1">
       <position>
-        0 0.0 0 0
-        5 0.0 0 0
-        8 0.4 0 0
-        15 0.4 0 0
-        18 0.7 0 0
-        25 0.7 0 0
-        30 0.0 0 0
+        0 0.25 0 0
+        5 0.25 0 0
+        8 0.65 0 0
+        15 0.65 0 0
+        18 0.95 0 0
+        25 0.95 0 0
+        30 0.25 0 0
       </position>
     </receiver>
   </scene>
