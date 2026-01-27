@@ -1,5 +1,5 @@
 /*
- ==============================================================================
+==============================================================================
 Time-aligned secondary path interpolation for ANC
 Copyright (C) 2026  Felix Holzmüller <holzmueller@iem.at>
 
@@ -29,6 +29,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // TODO: template-based implementation to support double precision directly
 // Initialize spline object
 tk::spline s (ir_index_warped, ir_interpolated_warped);
+
+double last_alpha = -1.0;
 
 double get_alpha (double position)
 {
@@ -100,17 +102,19 @@ double interpolate_dtw (double alpha, int index)
         std::min (static_cast<int> (alpha) + 1, static_cast<int> (ir_positions.size()) - 1);
     int lower_ir_idx = std::max (0, std::min (static_cast<int> (alpha), upper_ir_idx));
 
-    alpha -= static_cast<double> (lower_ir_idx);
+    double alpha_dec = alpha - static_cast<double> (lower_ir_idx);
 
     // Interpolate only once at first call for index 0
-    if (index == 0 && alpha > 1e-6 && alpha < 1.0 - 1e-6)
+    if (index == 0 && alpha != last_alpha)
     {
+        last_alpha = alpha;
+
         // Select which warped IR to use
         const std::vector<double>* ir_pos0;
         const std::vector<double>* ir_pos1;
         const std::vector<double>* displacement;
 
-        if (alpha < 0.5)
+        if (alpha_dec < 0.5)
         {
             ir_pos0 = &irs_clean[lower_ir_idx];
             ir_pos1 = &irs_upper_warped[upper_ir_idx];
@@ -126,11 +130,13 @@ double interpolate_dtw (double alpha, int index)
         // Linear interpolate original and warped IRs
         for (size_t n = 0; n < ir_interpolated_warped.size(); ++n)
         {
-            ir_interpolated_warped[n] = (1.0 - alpha) * (*ir_pos0)[n] + alpha * (*ir_pos1)[n];
+            ir_interpolated_warped[n] =
+                (1.0 - alpha_dec) * (*ir_pos0)[n] + alpha_dec * (*ir_pos1)[n];
 
             // // Calculate filter tap indices for dewarping
-            ir_index_warped[n] = static_cast<double> (n)
-                                 - ((*displacement)[n] * ((alpha < 0.5) ? alpha : (1.0 - alpha)));
+            ir_index_warped[n] =
+                static_cast<double> (n)
+                - ((*displacement)[n] * ((alpha_dec < 0.5) ? alpha_dec : (1.0 - alpha_dec)));
         }
 
         // Update spline
@@ -146,4 +152,19 @@ double interpolate_dtw (double alpha, int index)
 
     // Evaluate spline at given index
     return s (static_cast<double> (index));
+}
+
+double interpolate (double alpha, int index, int method)
+{
+    switch (method)
+    {
+        case 0:
+            return interpolate_nn (alpha, index);
+        case 1:
+            return interpolate_direct (alpha, index);
+        case 2:
+            return interpolate_dtw (alpha, index);
+        default:
+            return interpolate_nn (alpha, index);
+    }
 }
