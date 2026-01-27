@@ -103,7 +103,7 @@ double interpolate_dtw (double alpha, int index)
     alpha -= static_cast<double> (lower_ir_idx);
 
     // Interpolate only once at first call for index 0
-    if (index == 0 && alpha > 0.0 && alpha < 1.0)
+    if (index == 0 && alpha > 1e-6 && alpha < 1.0 - 1e-6)
     {
         // Select which warped IR to use
         const std::vector<double>* ir_pos0;
@@ -128,9 +128,9 @@ double interpolate_dtw (double alpha, int index)
         {
             ir_interpolated_warped[n] = (1.0 - alpha) * (*ir_pos0)[n] + alpha * (*ir_pos1)[n];
 
-            // Calculate filter tap indices for dewarping
+            // // Calculate filter tap indices for dewarping
             ir_index_warped[n] = static_cast<double> (n)
-                                 - ((*displacement)[n] * ((alpha < 0.5) ? (1.0 - alpha) : alpha));
+                                 - ((*displacement)[n] * ((alpha < 0.5) ? alpha : (1.0 - alpha)));
         }
 
         // Update spline
