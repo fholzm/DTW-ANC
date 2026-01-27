@@ -24,42 +24,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <iostream>
 #include <vector>
 
+#include "eval_anc_irs.h"
+
 // TODO: template-based implementation to support double precision directly
-
-// Example impulse responses for testing
-static const std::vector<std::vector<double>> irs_clean = { { 1.0, 1.0, 0.0, 0.0, 0.0 },
-                                                            { 1.0, 0.0, 1.0, 0.0, 0.0 },
-                                                            { 1.0, 0.0, 0.0, 1.0, 0.0 },
-                                                            { 1.0, 0.0, 0.0, 0.0, 1.0 } };
-
-static const std::vector<std::vector<double>> irs_upper_warped = {
-    { 0.0, 0.0, 0.0, 0.0, 0.0 },
-    { 0.9, 0.1, 0.8, -0.2, 0.1 },
-    { 1.1, -0.1, 0.0, 0.9, 0.2 },
-    { 0.95, 0.05, -0.05, 0.1, 1.05 }
-};
-
-static const std::vector<std::vector<double>> irs_lower_warped = { { 0.9, 0.1, 0.8, -0.2, 0.1 },
-                                                                   { 1.1, -0.1, 0.0, 0.9, 0.2 },
-                                                                   { 0.95, 0.05, -0.05, 0.1, 1.05 },
-                                                                   { 0.0, 0.0, 0.0, 0.0, 0.0 } };
-
-static const std::vector<std::vector<double>> displacement_upper = { { 0.0, 1.0, 0.0, 0.0, 0.0 },
-                                                                     { 0.0, 0.0, 1.0, 0.0, 0.0 },
-                                                                     { 0.0, 0.0, 0.0, 1.0, 0.0 },
-                                                                     { 0.0, 0.0, 0.0, 0.0, 1.0 } };
-
-static const std::vector<std::vector<double>> displacement_lower = { { 0.0, 1.0, 0.0, 0.0, 0.0 },
-                                                                     { 0.0, 0.0, 1.0, 0.0, 0.0 },
-                                                                     { 0.0, 0.0, 0.0, 1.0, 0.0 },
-                                                                     { 0.0, 0.0, 0.0, 0.0, 1.0 } };
-
-// Positions corresponding to the impulse responses
-static const std::vector<double> ir_positions = { 0.0, 0.33, 0.66, 1.0 };
-
-std::vector<double> ir_index_warped = { 0.0, 1.0, 2.0, 3.0, 4.0 };
-std::vector<double> ir_interpolated_warped = { 1.0, -0.6, 0.2, 0.9, 1.0 };
-
+// Initialize spline object
 tk::spline s (ir_index_warped, ir_interpolated_warped);
 
 double get_alpha (double position)

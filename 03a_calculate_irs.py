@@ -11,7 +11,7 @@ import glob
 config = {
     "fn_output": "faust_dsp/eval_anc_irs.h",
     "mode": "tr",  # 'tr' or 'rot'
-    "precision": "float",  # 'float' or 'double'
+    "precision": "double",  # 'float' or 'double'
     "dataset_path": "data/TASCAR_IRs/measured_irs_tr.npz",
     "spacing_fixpos": 15.0,  # spacing of the reference points, centimeters
     "step_patterns": "symmetricP2",  # Allowed step patterns for DTW
@@ -128,7 +128,9 @@ def main():
             f.write("#include <vector>\n\n")
 
             # Export irs_clean
-            f.write(f"std::vector<std::vector<{config['precision']}>> irs_clean = {{\n")
+            f.write(
+                f"static const std::vector<std::vector<{config['precision']}>> irs_clean = {{\n"
+            )
             for ir in irs_clean:
                 ir_str = ", ".join([f"{sample:.8e}f" for sample in ir])
                 f.write(f"    {{{ir_str}}},\n")
@@ -136,7 +138,7 @@ def main():
 
             # Export irs_lower_warped
             f.write(
-                f"std::vector<std::vector<{config['precision']}>> irs_lower_warped = {{\n"
+                f"static const std::vector<std::vector<{config['precision']}>> irs_lower_warped = {{\n"
             )
             for ir in irs_lower_warped:
                 ir_str = ", ".join([f"{sample:.8e}f" for sample in ir])
@@ -145,7 +147,7 @@ def main():
 
             # Export irs_upper_warped
             f.write(
-                f"std::vector<std::vector<{config['precision']}>> irs_upper_warped = {{\n"
+                f"static const std::vector<std::vector<{config['precision']}>> irs_upper_warped = {{\n"
             )
             for ir in irs_upper_warped:
                 ir_str = ", ".join([f"{sample:.8e}f" for sample in ir])
@@ -154,7 +156,7 @@ def main():
 
             # Export displacement_lower
             f.write(
-                f"std::vector<std::vector<{config['precision']}>> displacement_lower = {{\n"
+                f"static const std::vector<std::vector<{config['precision']}>> displacement_lower = {{\n"
             )
             for disp in displacement_lower:
                 disp_str = ", ".join([f"{sample:.8e}f" for sample in disp])
@@ -163,13 +165,35 @@ def main():
 
             # Export displacement_upper
             f.write(
-                f"std::vector<std::vector<{config['precision']}>> displacement_upper = {{\n"
+                f"static const std::vector<std::vector<{config['precision']}>> displacement_upper = {{\n"
             )
             for disp in displacement_upper:
                 disp_str = ", ".join([f"{sample:.8e}f" for sample in disp])
                 f.write(f"    {{{disp_str}}},\n")
             f.write("};\n")
 
+            # Export positions_fixed
+            f.write(
+                f"\nstatic const std::vector<{config['precision']}> ir_positions = {{\n"
+            )
+            for pos in positions_fixed:
+                f.write(f"    {pos:.8e}f,\n")
+            f.write("};\n")
+
+            # Export dummy variables for inteprolated IR and indices
+            f.write(f"\nstd::vector<{config['precision']}> ir_index_warped = {{\n")
+            index = ", ".join(
+                [f"{sample:.8e}f" for sample in np.arange(ir_range.stop, dtype="float")]
+            )
+            f.write(f"    {{{index}}},\n")
+            f.write("};\n")
+
+            f.write(
+                f"\nstd::vector<{config['precision']}> ir_interpolated_warped = {{\n"
+            )
+            ir_str = ", ".join([f"{sample:.8e}f" for sample in irs_clean[0]])
+            f.write(f"    {{{ir_str}}},\n")
+            f.write("};\n\n")
     # plt.show()
 
 
