@@ -58,14 +58,13 @@ def mag_phase_error(
 
     # Calculate relative magnitude error
     mag_error = np.abs(IR_TARGET_FFT - IR_INTERPOLATED_FFT) / np.abs(IR_TARGET_FFT)
+    # mag_error = np.abs(IR_INTERPOLATED_FFT / (IR_TARGET_FFT + 1e-12))
 
     if dB:
         mag_error = 20 * np.log10(mag_error + 1e-12)  # add small value to avoid log(0)
 
     # Calculate phase error
-    phase_error = np.unwrap(
-        np.angle(IR_TARGET_FFT, deg=False), discont=discont
-    ) - np.unwrap(np.angle(IR_INTERPOLATED_FFT, deg=False), discont=discont)
+    phase_error = np.angle(IR_TARGET_FFT * np.conj(IR_INTERPOLATED_FFT), deg=False)
 
     return f_axis, mag_error, phase_error
 
@@ -156,6 +155,7 @@ def plot_mag_phase_error(
         20 * np.log10(mag_error.T + 1e-12),
         vmax=config["plot_mag_limits"][1],
         vmin=config["plot_mag_limits"][0],
+        cmap="Greys",
         shading="auto",
     )
     plt.yscale("log")
@@ -163,7 +163,7 @@ def plot_mag_phase_error(
     ax.yaxis.set_major_formatter(ScalarFormatter())
     ax.yaxis.get_major_formatter().set_scientific(False)
     plt.colorbar(label="Magnitude error (dB)", extend="both")
-    plt.title("Magnitude Error")
+    plt.title("Normalized Magnitude Error")
     plt.xlabel(label_pos)
     plt.ylabel("Frequency (Hz)")
     plt.ylim(10, fs / 2)
@@ -172,20 +172,20 @@ def plot_mag_phase_error(
     plt.pcolormesh(
         angles,
         freq,
-        np.rad2deg(phase_error.T),
-        vmin=-90,
+        np.rad2deg(np.abs(phase_error.T)),
+        vmin=0,
         vmax=90,
-        cmap="seismic",
+        cmap="Greys",
         shading="auto",
     )
     plt.yscale("log")
     ax = plt.gca()
     ax.yaxis.set_major_formatter(ScalarFormatter())
     ax.yaxis.get_major_formatter().set_scientific(False)
-    cbar = plt.colorbar(label="Phase error (degrees)", extend="both")
-    cbar.set_ticks([-90, 0, 90])
-    cbar.set_ticklabels(["-90°", "0°", "90°"])
-    plt.title("Phase Error")
+    cbar = plt.colorbar(label="Phase error (degrees)", extend="max")
+    cbar.set_ticks([0, 45, 90])
+    cbar.set_ticklabels(["0°", "45°", "90°"])
+    plt.title("Absolute Phase Error")
     plt.xlabel(label_pos)
     plt.ylabel("Frequency (Hz)")
     plt.ylim(10, fs / 2)
