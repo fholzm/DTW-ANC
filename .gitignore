@@ -5,6 +5,7 @@
 !Makefile
 !LICENSE
 !README
+!jcmess
 
 *.tsc
 !tascar_sim.tsc
