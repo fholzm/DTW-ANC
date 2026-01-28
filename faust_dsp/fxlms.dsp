@@ -10,7 +10,7 @@ import("stdfaust.lib");
 
 fxlms_siso(order, ctl_stepsize, ctl_reset, ctl_adapt, ctl_delay, e, x, r) = (si.bus(order) ~ adaptation) : apply_filter : _  with {
 
-    adaptation = si.bus(order) <: par(i, order, ba.selector(i, order) : - (stepsize * ctl_adapt * e * (r : @(i + ctl_delay)))) : par(i, order, *(ctl_reset * -1 + 1));
+    adaptation = si.bus(order) <: par(i, order, ba.selector(i, order) : - (ctl_stepsize * ctl_adapt * e * (r : @(i + ctl_delay)))) : par(i, order, *(ctl_reset * -1 + 1));
     apply_filter = si.bus(order) <: sum(i, order, ba.selector(i, order) * (x : @(i)));
 };
 
