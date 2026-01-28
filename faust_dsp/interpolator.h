@@ -31,6 +31,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 tk::spline s (ir_index_warped, ir_interpolated_warped);
 
 double last_alpha = -1.0;
+int last_method = -1;
+
+std::vector<double> ir_interpolated (irs_clean[0]);
 
 double get_alpha (double position)
 {
@@ -64,11 +67,8 @@ double get_alpha (double position)
     return static_cast<double> (ir_positions.size() - 1);
 }
 
-double interpolate_direct (double alpha, int index)
+void interpolate_direct (double alpha)
 {
-    // Sanitize input index
-    index = std::max (0, std::min (index, static_cast<int> (irs_clean[0].size() - 1)));
-
     // Extract IR indices and alpha for interpolation
     int upper_ir_idx =
         std::min (static_cast<int> (alpha) + 1, static_cast<int> (ir_positions.size()) - 1);
@@ -76,27 +76,28 @@ double interpolate_direct (double alpha, int index)
 
     alpha -= static_cast<double> (lower_ir_idx);
 
-    return ((1.0 - alpha) * irs_clean[lower_ir_idx][index]
-            + alpha * irs_clean[upper_ir_idx][index]);
+    for (size_t n = 0; n < ir_interpolated.size(); ++n)
+    {
+        ir_interpolated[n] =
+            (1.0 - alpha) * irs_clean[lower_ir_idx][n] + alpha * irs_clean[upper_ir_idx][n];
+    }
 }
 
-double interpolate_nn (double alpha, int index)
+void interpolate_nn (double alpha)
 {
     // Nearest neighbor interpolation
     int ir_idx = static_cast<int> (std::round (alpha));
     ir_idx = std::max (0, std::min (ir_idx, static_cast<int> (ir_positions.size() - 1)));
 
-    // Sanitize input index
-    index = std::max (0, std::min (index, static_cast<int> (irs_clean[0].size() - 1)));
-
-    return irs_clean[ir_idx][index];
+    // Store in interpolated IR vector
+    for (size_t n = 0; n < ir_interpolated.size(); ++n)
+    {
+        ir_interpolated[n] = irs_clean[ir_idx][n];
+    }
 }
 
-double interpolate_dtw (double alpha, int index)
+void interpolate_dtw (double alpha)
 {
-    // Sanitize input index
-    index = std::max (0, std::min (index, static_cast<int> (irs_clean[0].size() - 1)));
-
     // Extract IR indices and alpha for interpolation
     int upper_ir_idx =
         std::min (static_cast<int> (alpha) + 1, static_cast<int> (ir_positions.size()) - 1);
@@ -104,67 +105,79 @@ double interpolate_dtw (double alpha, int index)
 
     double alpha_dec = alpha - static_cast<double> (lower_ir_idx);
 
-    // Interpolate only once at first call for index 0
-    if (index == 0 && alpha != last_alpha)
+    // Select which warped IR to use
+    const std::vector<double>* ir_pos0;
+    const std::vector<double>* ir_pos1;
+    const std::vector<double>* displacement;
+
+    if (alpha_dec < 0.5)
     {
-        last_alpha = alpha;
-
-        // Select which warped IR to use
-        const std::vector<double>* ir_pos0;
-        const std::vector<double>* ir_pos1;
-        const std::vector<double>* displacement;
-
-        if (alpha_dec < 0.5)
-        {
-            ir_pos0 = &irs_clean[lower_ir_idx];
-            ir_pos1 = &irs_upper_warped[upper_ir_idx];
-            displacement = &displacement_upper[upper_ir_idx];
-        }
-        else
-        {
-            ir_pos0 = &irs_lower_warped[lower_ir_idx];
-            ir_pos1 = &irs_clean[upper_ir_idx];
-            displacement = &displacement_lower[lower_ir_idx];
-        }
-
-        // Linear interpolate original and warped IRs
-        for (size_t n = 0; n < ir_interpolated_warped.size(); ++n)
-        {
-            ir_interpolated_warped[n] =
-                (1.0 - alpha_dec) * (*ir_pos0)[n] + alpha_dec * (*ir_pos1)[n];
-
-            // // Calculate filter tap indices for dewarping
-            ir_index_warped[n] =
-                static_cast<double> (n)
-                - ((*displacement)[n] * ((alpha_dec < 0.5) ? alpha_dec : (1.0 - alpha_dec)));
-        }
-
-        // Update spline
-        s = tk::spline (ir_index_warped,
-                        ir_interpolated_warped,
-                        tk::spline::cspline,
-                        false,
-                        tk::spline::first_deriv,
-                        0.0,
-                        tk::spline::first_deriv,
-                        0.0);
+        ir_pos0 = &irs_clean[lower_ir_idx];
+        ir_pos1 = &irs_upper_warped[upper_ir_idx];
+        displacement = &displacement_upper[upper_ir_idx];
+    }
+    else
+    {
+        ir_pos0 = &irs_lower_warped[lower_ir_idx];
+        ir_pos1 = &irs_clean[upper_ir_idx];
+        displacement = &displacement_lower[lower_ir_idx];
     }
 
-    // Evaluate spline at given index
-    return s (static_cast<double> (index));
+    // Linear interpolate original and warped IRs
+    for (size_t n = 0; n < ir_interpolated_warped.size(); ++n)
+    {
+        ir_interpolated_warped[n] = (1.0 - alpha_dec) * (*ir_pos0)[n] + alpha_dec * (*ir_pos1)[n];
+
+        // // Calculate filter tap indices for dewarping
+        ir_index_warped[n] =
+            static_cast<double> (n)
+            - ((*displacement)[n] * ((alpha_dec < 0.5) ? alpha_dec : (1.0 - alpha_dec)));
+    }
+
+    // Update spline
+    s = tk::spline (ir_index_warped,
+                    ir_interpolated_warped,
+                    tk::spline::cspline,
+                    false,
+                    tk::spline::first_deriv,
+                    0.0,
+                    tk::spline::first_deriv,
+                    0.0);
+
+    // Evaluate spline and store in interpolated IR vector
+    for (size_t n = 0; n < ir_interpolated.size(); ++n)
+    {
+        ir_interpolated[n] = s (static_cast<double> (n));
+    }
 }
 
 double interpolate (double alpha, int index, int method)
 {
-    switch (method)
+    // Sanitize input index
+    index = std::max (0, std::min (index, static_cast<int> (irs_clean[0].size() - 1)));
+
+    // Update interpolated IR at index 0 call only if method or alpha changed
+    if ((method != last_method || alpha != last_alpha) && index == 0)
     {
-        case 0:
-            return interpolate_nn (alpha, index);
-        case 1:
-            return interpolate_direct (alpha, index);
-        case 2:
-            return interpolate_dtw (alpha, index);
-        default:
-            return interpolate_nn (alpha, index);
+        last_method = method;
+        last_alpha = alpha;
+
+        switch (method)
+        {
+            case 0:
+                interpolate_nn (alpha);
+                break;
+            case 1:
+                interpolate_direct (alpha);
+                break;
+            case 2:
+                interpolate_dtw (alpha);
+                break;
+            default:
+                interpolate_nn (alpha);
+                break;
+        }
     }
+
+    return ir_interpolated[index];
 }
