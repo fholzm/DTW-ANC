@@ -13,7 +13,7 @@ positions_to_test = np.arange(0.25, 1.005, 0.005, dtype=float)
 fs = 16000
 ir_length = 512
 n_jobs = 8
-sinc_order = 1
+sinc_order = 64
 
 
 def generate_tascar_project(position: float = 0.0) -> str:
