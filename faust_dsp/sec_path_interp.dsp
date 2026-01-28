@@ -1,3 +1,11 @@
+declare name "Secondary path interpolator";
+declare author "Felix Holzmüller";
+declare copyright "IEM";
+declare version "20260128_1700";
+declare license "GPLv3";
+
+declare options "[osc:on]";
+
 import("stdfaust.lib");
 
 IR_SIZE = 64;
@@ -15,4 +23,4 @@ interpolation_method = nentry("Interpolation method[style:menu{'NN':0;'Linear':1
 fir_coeffs = par(i, IR_SIZE, interpolate_c(alpha, i, interpolation_method));
 
 /* Audio-rate usage */
-process = no.pink_noise * 0.1 : fi.fir(fir_coeffs) <: attach(_, hbargraph("Output", 0, 1));
+process = _ : fi.fir(fir_coeffs) <: attach(_, hbargraph("Output", 0, 1));
