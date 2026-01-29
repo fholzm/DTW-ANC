@@ -185,7 +185,7 @@ def main():
             )
             time.sleep(0.1)
 
-            client_src.send_message("/Mono_noise_source/Active", 1)
+            client_src.send_message("/Noise_Generator/Active", 1)
             time.sleep(0.1)
 
             # Reset filter coefficients
@@ -226,13 +226,13 @@ def main():
 
             time.sleep(9)
 
-            client_pd.send_message("/position", [0.475, 2])
+            client_pd.send_message("/position", [0.475, 2000])
             time.sleep(12)
 
-            client_pd.send_message("/position", [0.6, 2])
+            client_pd.send_message("/position", [0.6, 2000])
             time.sleep(12)
 
-            client_pd.send_message("/position", [0.9, 2])
+            client_pd.send_message("/position", [0.9, 2000])
             time.sleep(12)
 
             client_pd.send_message("/record", 0)

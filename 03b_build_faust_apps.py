@@ -4,17 +4,17 @@ import subprocess
 def main():
     subprocess.run(
         [
-            "faust2jack",
+            "faust2jackconsole",
             "-double",
             "-osc",
             "anc_simulation/faust_dsp/sec_path_interp.dsp",
         ]
     )
     subprocess.run(
-        ["faust2jaqt", "-double", "-osc", "anc_simulation/faust_dsp/fxlms.dsp"]
+        ["faust2jackconsole", "-double", "-osc", "anc_simulation/faust_dsp/fxlms.dsp"]
     )
     subprocess.run(
-        ["faust2jaqt", "-double", "-osc", "anc_simulation/faust_dsp/noise.dsp"]
+        ["faust2jackconsole", "-double", "-osc", "anc_simulation/faust_dsp/noise.dsp"]
     )
 
 
