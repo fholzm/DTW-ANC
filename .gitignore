@@ -9,7 +9,8 @@
 
 *.tsc
 !tascar_sim.tsc
-faust_dsp/eval_anc_irs.h
+anc_simulation/fn_write.txt
+anc_simulation/faust_dsp/eval_anc_irs.h
 tmp*
 faust.*
 config.toml
