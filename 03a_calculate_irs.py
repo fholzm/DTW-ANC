@@ -9,7 +9,7 @@ import toml
 import glob
 
 config = {
-    "fn_output": "faust_dsp/eval_anc_irs.h",
+    "fn_output": "anc_simulation/faust_dsp/eval_anc_irs.h",
     "mode": "tr",  # 'tr' or 'rot'
     "precision": "double",  # 'float' or 'double'
     "dataset_path": "data/TASCAR_IRs/measured_irs_tr.npz",
