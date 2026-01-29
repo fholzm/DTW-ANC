@@ -29,6 +29,7 @@ RUN apt-get update \
     mercurial \
     openssh-client \
     procps \
+    puredata \
     software-properties-common \
     subversion \
     wget \
