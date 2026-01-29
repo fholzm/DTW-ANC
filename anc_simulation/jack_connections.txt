@@ -1,0 +1,9 @@
+noise:out_0 -#- render.ANC_simulation:prim_source.0.0
+noise:out_0 -#- fxlms:in_2
+noise:out_0 -#- sec_path_interp:in_0
+render.ANC_simulation:hrtf_receiver_l -#- pure_data:input_1
+render.ANC_simulation:hrtf_receiver_l -#- fxlms:in_0
+render.ANC_simulation:hrtf_receiver_r -#- pure_data:input_2
+sec_path_interp:out_0 -#- fxlms:in_1
+render.sync:sync_out -#- render.ANC_simulation:sync_in
+fxlms:out_0 -#- render.ANC_simulation:sec_source.0.0

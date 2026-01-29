@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
-<session attribution="Felix Holzmüller" duration="35" license="GPLv3">
-  <scene name="ir_pos0.000" guiscale="6" ismorder="0">
+<session attribution="Felix Holzmüller" license="GPLv3" srv_port="9000" warnfragsize="16" warnsrate="16000">
+  <scene name="ANC_simulation" guiscale="6" ismorder="0">
     <source name="sec_source">
       <sound type="omni" gain="-20.0" sincorder="64"/>
       <position>0 0.0 0.0 0.0</position>
@@ -14,12 +14,6 @@
     <receiver name="hrtf_receiver" type="hrtf" nf_filter="true" sincorder="64">
       <position>
         0 0.25 0 0
-        5 0.25 0 0
-        8 0.65 0 0
-        15 0.65 0 0
-        18 0.95 0 0
-        25 0.95 0 0
-        30 0.25 0 0
       </position>
     </receiver>
   </scene>
