@@ -9,7 +9,7 @@ fs = 16000
 blocksize = 16
 noise_cutoff_freq = 1500.0  # Hz
 start_position = 0.25  # meters
-n_realizations = 5
+n_realizations = 100
 stepsize = 0.01
 interpolation_types = ["reference", "nn", "linear", "dtw"]
 
