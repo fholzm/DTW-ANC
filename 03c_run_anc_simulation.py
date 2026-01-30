@@ -7,10 +7,10 @@ from tqdm import tqdm
 
 fs = 16000
 blocksize = 16
-noise_cutoff_freq = 2000.0  # Hz
+noise_cutoff_freq = 1500.0  # Hz
 start_position = 0.25  # meters
 n_realizations = 2
-stepsize = 0.1
+stepsize = 0.01
 interpolation_types = ["reference", "nn", "linear", "dtw"]
 
 port_src = 9001
@@ -100,7 +100,7 @@ def main():
                     "-rt",
                     "-r",
                     str(fs),
-                    # "-nogui",
+                    "-nogui",
                     "-jack",
                     "-inchannels",
                     "2",
@@ -205,7 +205,7 @@ def main():
                 interp_code = 0
 
             client_secpath.send_message(
-                "/Secondary_path_interpolator/Method", interp_type
+                "/Secondary_path_interpolator/Method", interp_code
             )
             client_secpath.send_message(
                 "/Secondary_path_interpolator/Position", start_position
