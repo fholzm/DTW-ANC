@@ -9,7 +9,7 @@ fs = 16000
 blocksize = 16
 noise_cutoff_freq = 1500.0  # Hz
 start_position = 0.25  # meters
-n_realizations = 2
+n_realizations = 5
 stepsize = 0.01
 interpolation_types = ["reference", "nn", "linear", "dtw"]
 
@@ -155,7 +155,7 @@ def main():
             time.sleep(0.1)
 
             p_tascar = subprocess.Popen(
-                ["tascar", "anc_simulation/tascar_sim.tsc"],
+                ["tascar_cli", "anc_simulation/tascar_sim.tsc"],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.STDOUT,
             )
