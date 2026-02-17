@@ -1,6 +1,6 @@
 fn_output_prefix = "eval_steppattern_tr_"
-fn_result_dir = "results/eval_steppattern_tr/"
-fn_figure_dir = "figures/eval_steppattern_tr/"
+fn_result_dir = "results/metrics/eval_steppattern_tr/"
+fn_figure_dir = "results/figures/eval_steppattern_tr/"
 dataset_path = "data/TASCAR_IRs/measured_irs_tr.npz"
 mode = "tr"
 spacing_fixpos = [15.0]  # spacing of the reference points, centimeters

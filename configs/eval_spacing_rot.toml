@@ -1,6 +1,6 @@
 fn_output_prefix = "eval_spacing_rot_"
-fn_result_dir = "results/eval_spacing_rot/"
-fn_figure_dir = "figures/eval_spacing_rot/"
+fn_result_dir = "results/metrics/eval_spacing_rot/"
+fn_figure_dir = "results/figures/eval_spacing_rot/"
 dataset_path = "data/THK_NF/HRIR_CIRC360_NF025.sofa"
 mode = "rot"
 spacing_fixpos = [5, 10, 15, 20, 30, 45]  # spacing of the reference points, centimeters
