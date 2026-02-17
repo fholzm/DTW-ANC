@@ -69,25 +69,46 @@ def mag_phase_error(
     return f_axis, mag_error, phase_error
 
 
-def extract_median_error_per_quadrant(
-    sm_values: np.ndarray, angles: np.ndarray, angle_spacing: int, in_db: bool = False
+def extract_metric_per_quadrant(
+    metric_raw: np.ndarray,
+    angles: np.ndarray,
+    angle_spacing: int,
+    mode: str = "median",
+    in_db: bool = False,
 ) -> tuple[float, float, float, float, float]:
     """Calculate the median system mismatch per quadrant on all interpolated positions
 
     Parameters
     ----------
-    sm_values : np.ndarray
-        system mismatch values
+    metric_raw : np.ndarray
+        raw metric values (e.g., system mismatch) for all angles
     angles : np.ndarray
         angles corresponding to the system mismatch values
     angle_spacing : int
         angle spacing used for reference positions
+    mode : str
+        mode for calculating the metric per quadrant, possible values: "median" (default), "mean", "max", "min"
+    in_db : bool
+        whether to return the metric values in dB (20*log10) or linear scale (default: False)
 
     Returns
     -------
     tuple[float,float, float, float, float]
-        median system mismatch values overall and for front, back, contralateral, and ipsilateral quadrants
+        metrics overall and for front, back, contralateral, and ipsilateral quadrants
     """
+
+    if mode == "median":
+        metric_func = np.median
+    elif mode == "mean":
+        metric_func = np.mean
+    elif mode == "max":
+        metric_func = np.max
+    elif mode == "min":
+        metric_func = np.min
+    else:
+        raise ValueError(
+            f"Invalid mode: {mode}. Supported modes are: 'median', 'mean', 'max', 'min'."
+        )
 
     indices_interpolated = angles % angle_spacing != 0
 
@@ -99,11 +120,11 @@ def extract_median_error_per_quadrant(
     index_mask_clat = (angles >= 45) & (angles <= 135) & indices_interpolated
     index_mask_ilat = (angles >= 225) & (angles <= 315) & indices_interpolated
 
-    sm_overall = np.median(sm_values[indices_interpolated])
-    sm_front = np.median(sm_values[index_mask_front])
-    sm_back = np.median(sm_values[index_mask_back])
-    sm_clat = np.median(sm_values[index_mask_clat])
-    sm_ilat = np.median(sm_values[index_mask_ilat])
+    sm_overall = metric_func(metric_raw[indices_interpolated])
+    sm_front = metric_func(metric_raw[index_mask_front])
+    sm_back = metric_func(metric_raw[index_mask_back])
+    sm_clat = metric_func(metric_raw[index_mask_clat])
+    sm_ilat = metric_func(metric_raw[index_mask_ilat])
 
     if in_db:
         sm_overall = 20 * np.log10(sm_overall)
@@ -116,10 +137,11 @@ def extract_median_error_per_quadrant(
 
 
 def plot_mag_phase_error(
-    angles: np.ndarray,
+    positions: np.ndarray,
     mag_error: np.ndarray,
     phase_error: np.ndarray,
     fs: float,
+    stable_freq: np.ndarray,
     config: dict,
     export_figure: bool = False,
     export_figure_fn: str = "",
@@ -128,14 +150,16 @@ def plot_mag_phase_error(
 
     Parameters
     ----------
-    angles : np.ndarray
-        Angles array
+    positions : np.ndarray
+        Position array
     mag_error : np.ndarray
-        Magnitude error matrix (angles x frequencies)
+        Magnitude error matrix (positions x frequencies)
     phase_error : np.ndarray
-        Phase error matrix (angles x frequencies)
+        Phase error matrix (positions x frequencies)
     fs : float
         Sampling frequency
+    stable_freq : np.ndarray
+        Stable frequency for each position (frequencies above this value are considered unstable)
     config : dict
         Configuration dictionary
     export_figure : bool
@@ -150,13 +174,16 @@ def plot_mag_phase_error(
     plt.figure()
     plt.subplot(2, 1, 1)
     plt.pcolormesh(
-        angles,
+        positions,
         freq,
         20 * np.log10(mag_error.T + 1e-12),
         vmax=config["plot_mag_limits"][1],
         vmin=config["plot_mag_limits"][0],
         cmap="Greys",
         shading="auto",
+    )
+    plt.plot(
+        positions, stable_freq, color="red", linestyle="-", label="Stable frequency"
     )
     plt.yscale("log")
     ax = plt.gca()
@@ -170,13 +197,16 @@ def plot_mag_phase_error(
 
     plt.subplot(2, 1, 2)
     plt.pcolormesh(
-        angles,
+        positions,
         freq,
         np.rad2deg(np.abs(phase_error.T)),
         vmin=0,
         vmax=90,
         cmap="Greys",
         shading="auto",
+    )
+    plt.plot(
+        positions, stable_freq, color="red", linestyle="-", label="Stable frequency"
     )
     plt.yscale("log")
     ax = plt.gca()

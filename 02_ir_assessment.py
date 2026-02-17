@@ -163,6 +163,7 @@ def process_config(config_path: str):
     results = None
 
     sm_all = []
+    stable_freq_all = []
 
     for method in config["interpolation_methods"]:
         step_patterns_to_use = config["step_patterns"] if method == "dtw" else [None]
@@ -183,6 +184,10 @@ def process_config(config_path: str):
 
                 # Initialize temporary variables to store results
                 sm_tmp = np.zeros_like(position, dtype=float)
+                stable_freq_tmp = np.zeros_like(position, dtype=float)
+                stable_freq_tmp[ref_indices] = (
+                    fs / 2
+                )  # Set stable frequency for reference positions to Nyquist
                 mag_error_tmp = np.zeros((len(position), config["plot_nfft"] // 2 + 1))
                 phase_error_tmp = np.zeros(
                     (len(position), config["plot_nfft"] // 2 + 1)
@@ -251,9 +256,21 @@ def process_config(config_path: str):
                             discont=1.5 * np.pi,
                         )
 
+                        # Find stable frequncy range --> instable where phase error is above pi/2
+                        first_instable_bin = np.where(
+                            np.abs(phase_error_tmp[idx_target]) >= np.pi / 2
+                        )[0]
+
+                        stable_freq_tmp[idx_target] = (
+                            f_axis[first_instable_bin[0]]
+                            if len(first_instable_bin) > 0
+                            else fs / 2
+                        )
+
                 # Extract system mismatch per quadrant
 
                 sm_all.append(sm_tmp)
+                stable_freq_all.append(stable_freq_tmp)
 
                 if config["mode"] == "rot":
                     (
@@ -262,9 +279,20 @@ def process_config(config_path: str):
                         sm_tmp_back,
                         sm_tmp_clat,
                         sm_tmp_ilat,
-                    ) = metrics.extract_median_error_per_quadrant(
-                        sm_tmp, position, spacing_fixpos, True
+                    ) = metrics.extract_metric_per_quadrant(
+                        sm_tmp, position, spacing_fixpos, "median", True
                     )
+
+                    (
+                        stable_freq_tmp_overall,
+                        stable_freq_tmp_front,
+                        stable_freq_tmp_back,
+                        stable_freq_tmp_clat,
+                        stable_freq_tmp_ilat,
+                    ) = metrics.extract_metric_per_quadrant(
+                        stable_freq_tmp, position, spacing_fixpos, "min", False
+                    )
+
                     results_tmp = pd.DataFrame(
                         {
                             "method": [method],
@@ -281,12 +309,20 @@ def process_config(config_path: str):
                             "sm_back": [sm_tmp_back],
                             "sm_clat": [sm_tmp_clat],
                             "sm_ilat": [sm_tmp_ilat],
+                            "stable_freq_overall": [stable_freq_tmp_overall],
+                            "stable_freq_front": [stable_freq_tmp_front],
+                            "stable_freq_back": [stable_freq_tmp_back],
+                            "stable_freq_clat": [stable_freq_tmp_clat],
+                            "stable_freq_ilat": [stable_freq_tmp_ilat],
                         }
                     )
 
                 else:
                     sm_tmp_overall = 20 * np.log10(
                         np.median(sm_tmp[position % spacing_fixpos != 0])
+                    )
+                    stable_freq_tmp_overall = np.min(
+                        stable_freq_tmp[position % spacing_fixpos != 0]
                     )
                     results_tmp = pd.DataFrame(
                         {
@@ -298,6 +334,7 @@ def process_config(config_path: str):
                             "sm_overall": [
                                 sm_tmp_overall,
                             ],
+                            "stable_freq_overall": [stable_freq_tmp_overall],
                         }
                     )
 
@@ -325,6 +362,7 @@ def process_config(config_path: str):
                     mag_error_tmp,
                     phase_error_tmp,
                     fs,
+                    stable_freq_tmp,
                     config,
                     config["export_figures"],
                     fn,
