@@ -1,6 +1,7 @@
 import numpy as np
 import dtw
 from scipy.interpolate import CubicSpline
+from romanutils import rtoi
 
 
 def select_step_pattern(step_pattern_name: str) -> dtw.StepPattern:
@@ -28,6 +29,16 @@ def select_step_pattern(step_pattern_name: str) -> dtw.StepPattern:
         step_pattern = dtw.symmetricP1
     elif step_pattern_name == "symmetricP2":
         step_pattern = dtw.symmetricP2
+    elif step_pattern_name.startswith("rabinerJuang"):
+        step_pattern_tmp = step_pattern_name[len("rabinerJuang") : -1]
+        slope_weighting = step_pattern_name[-1]
+        patterntype = rtoi(step_pattern_tmp)
+        step_pattern = dtw.rabinerJuangStepPattern(
+            patterntype, slope_weighting=slope_weighting
+        )
+    elif step_pattern_name.startswith("mvm"):
+        elasticity = int(step_pattern_name[len("mvm") :])
+        step_pattern = dtw.mvmStepPattern(elasticity)
     else:
         raise ValueError(f"Unknown step pattern: {step_pattern_name}")
 
