@@ -19,7 +19,6 @@ plt.rcParams["axes.labelsize"] = 1 * 8
 plt.rcParams["xtick.labelsize"] = 1 * 8
 plt.rcParams["ytick.labelsize"] = 1 * 8
 plt.rcParams["legend.fontsize"] = 1 * 8
-plt.rcParams["figure.dpi"] = 300
 
 
 def load_npz_dataset(config: dict) -> tuple[np.ndarray, np.ndarray, float, range]:
@@ -170,8 +169,7 @@ def process_config(config_path: str):
     ax2.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
 
     if config["export_figures"]:
-        ds_name = config["dataset_path"].split("/")[-1].split(".")[0]
-        plt.savefig(f"{config['fn_figure_dir']}/IR_dataset.png", dpi=300)
+        plt.savefig(f"{config['fn_figure_dir']}/IR_dataset.png", dpi=config["plot_dpi"])
 
     results = None
 
@@ -460,7 +458,7 @@ def process_config(config_path: str):
                 )
                 plt.savefig(
                     fn,
-                    dpi=300,
+                    dpi=config["plot_dpi"],
                 )
 
     if len(config["step_patterns"]) > 1 and results is not None:
@@ -500,7 +498,7 @@ def process_config(config_path: str):
             )
             plt.savefig(
                 fn,
-                dpi=300,
+                dpi=config["plot_dpi"],
             )
 
     # Sort results by spacing, then by order of methods in config

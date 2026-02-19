@@ -13,5 +13,6 @@ plot_sm_limits = [-40, 8]  # dB
 plot_mag_limits = [-30, 0]  # dB
 plot_nfft = 512
 plot_spacings = [10, 20, 30]  # positions to plot
+plot_dpi = 600
 export_figures = true
 export_results = true

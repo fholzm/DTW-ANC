@@ -224,7 +224,7 @@ def plot_mag_phase_error(
     if export_figure and export_figure_fn != "":
         plt.savefig(
             export_figure_fn,
-            dpi=300,
+            dpi=config["plot_dpi"],
         )
 
 
@@ -393,7 +393,7 @@ def plot_mag_phase_error_multiplot(
             if config["mode"] == "tr":
                 caption_text = f"{spacing:.0f} cm spacing, {method_name}"
             else:
-                caption_text = f"{spacing:.1f}° spacing, {method_name}"
+                caption_text = f"{spacing:.0f}° spacing, {method_name}"
 
             ax_phase.text(
                 0.5,
@@ -402,15 +402,20 @@ def plot_mag_phase_error_multiplot(
                 ha="center",
                 va="top",
                 fontsize=8,
-                fontfamily="serif",
+                fontfamily="Times New Roman",
                 transform=ax_phase.transAxes,
             )
 
-    fig.supylabel("Frequency (Hz)", x=0.05)
+    fig.supylabel(
+        "Frequency (Hz)",
+        x=0.05,
+        fontsize=8,
+        fontfamily="Times New Roman",
+    )
 
     if export_figure and export_figure_fn != "":
         plt.savefig(
             export_figure_fn,
-            dpi=300,
+            dpi=config["plot_dpi"],
             bbox_inches="tight",
         )

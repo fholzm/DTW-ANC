@@ -13,11 +13,31 @@ step_patterns = [
     "symmetricP05",
     "symmetricP1",
     "symmetricP2",
+    "rabinerJuangIa",
+    "rabinerJuangIb",
+    "rabinerJuangIc",
+    "rabinerJuangId",
+    "rabinerJuangIIa",
+    "rabinerJuangIIb",
+    "rabinerJuangIIc",
+    "rabinerJuangIId",
+    "rabinerJuangVa",
+    "rabinerJuangVb",
+    "rabinerJuangVc",
+    "rabinerJuangVd",
+    "rabinerJuangVIa",
+    "rabinerJuangVIb",
+    "rabinerJuangVIc",
+    "rabinerJuangVId",
+    "mvm1",
+    "mvm5",
+    "mvm10"
 ]  # Allowed step patterns for DTW
 ir_ds_factor = 3  # downsampling factor for IRs
 ir_range = [0, 64]  # taps of the IR to consider in analysis (was: range(0, 64))
 plot_sm_limits = [-40, 8]  # dB
 plot_mag_limits = [-30, 0]  # dB
 plot_nfft = 512
+plot_dpi = 600
 export_figures = true
 export_results = true
