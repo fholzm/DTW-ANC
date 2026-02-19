@@ -503,9 +503,28 @@ def process_config(config_path: str):
                 dpi=300,
             )
 
+    # Sort results by spacing, then by order of methods in config
+    method_order = {m: i for i, m in enumerate(config["interpolation_methods"])}
+    results["method_order"] = results["method"].map(method_order)
+    results = (
+        results.sort_values(by=["spacing", "method_order"])
+        .drop(columns=["method_order"])
+        .reset_index(drop=True)
+    )
+
     if config["export_results"] and results is not None:
         fn = config["fn_result_dir"] + f"{config['fn_output_prefix']}results"
-        results.to_csv(fn + ".csv", index=False, float_format="%.2f")
+        # Format sm columns to 2 decimals, frequency columns to 0 decimals
+        formatters = {}
+        for col in results.columns:
+            if col.startswith("sm"):
+                formatters[col] = lambda x: f"{x:.2f}"
+            elif col.startswith("stable_freq"):
+                formatters[col] = lambda x: f"{x:.0f}"
+        results_export = results.copy()
+        for col, fmt in formatters.items():
+            results_export[col] = results[col].map(fmt)
+        results_export.to_csv(fn + ".csv", index=False)
         results.to_pickle(fn + ".pkl")
 
     print(results)
