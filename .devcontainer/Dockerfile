@@ -38,6 +38,7 @@ RUN apt-get update \
     llvm \
     htop \
     mercurial \
+    msttcorefonts \
     openssh-client \
     pkg-config \
     procps \

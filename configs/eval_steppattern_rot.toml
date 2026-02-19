@@ -4,7 +4,7 @@ fn_figure_dir = "results/figures/eval_steppattern_rot/"
 dataset_path = "data/THK_NF/HRIR_CIRC360_NF025.sofa"
 mode = "rot"
 spacing_fixpos = [30]  # spacing of the reference points, centimeters
-interpolation_methods = ["direct", "nn", "dtw"]  # Methods to test
+interpolation_methods = ["nn", "direct", "dtw"]  # Methods to test
 dewarping_interpolator = "cs"  # Interpolator to extract values at integer positions after dewarping
 step_patterns = [
     "symmetric1",

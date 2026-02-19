@@ -1,12 +1,25 @@
 import numpy as np
 from scipy import signal
 import sofar as sf
+import matplotlib
 import matplotlib.pyplot as plt
 from utils import metrics, interpolate
 import pandas as pd
 import os
 import toml
 import glob
+
+# matplotlib.use("Agg")  # Use non-interactive backend for figure generation
+
+# Configure figure defaults --> 8 pt Times New Roman
+plt.rcParams["font.family"] = "Times New Roman"
+plt.rcParams["font.size"] = 1 * 8
+plt.rcParams["axes.titlesize"] = 1 * 8
+plt.rcParams["axes.labelsize"] = 1 * 8
+plt.rcParams["xtick.labelsize"] = 1 * 8
+plt.rcParams["ytick.labelsize"] = 1 * 8
+plt.rcParams["legend.fontsize"] = 1 * 8
+plt.rcParams["figure.dpi"] = 300
 
 
 def load_npz_dataset(config: dict) -> tuple[np.ndarray, np.ndarray, float, range]:
@@ -165,10 +178,18 @@ def process_config(config_path: str):
     sm_all = []
     stable_freq_all = []
 
+    mag_error = []
+    phase_error = []
+
+    methods = []
+    spacings = []
+
     for method in config["interpolation_methods"]:
         step_patterns_to_use = config["step_patterns"] if method == "dtw" else [None]
         for step_pattern_str in step_patterns_to_use:
             for spacing_fixpos in config["spacing_fixpos"]:
+                spacings.append(spacing_fixpos)
+                methods.append(method)
                 # Select reference positions based on angle spacing
                 ref_indices = np.where(
                     (position - position[0]) % spacing_fixpos < 1e-6
@@ -271,6 +292,8 @@ def process_config(config_path: str):
 
                 sm_all.append(sm_tmp)
                 stable_freq_all.append(stable_freq_tmp)
+                mag_error.append(mag_error_tmp)
+                phase_error.append(phase_error_tmp)
 
                 if config["mode"] == "rot":
                     (
@@ -371,6 +394,20 @@ def process_config(config_path: str):
     # Plot system mismatch
     reg_smplot = 10 ** (config["plot_sm_limits"][0] / 20)
     if len(config["spacing_fixpos"]) > 1 and results is not None:
+        metrics.plot_mag_phase_error_multiplot(
+            position,
+            spacings,
+            config["plot_spacings"],
+            methods,
+            mag_error,
+            phase_error,
+            fs,
+            stable_freq_all,
+            config,
+            config["export_figures"],
+            config["fn_figure_dir"] + f"fd_error_{config["mode"]}_all.png",
+        )
+
         for spacing_fixpos in config["spacing_fixpos"]:
             # Find all entry indices with the given angle spacing
             idx_dir = np.where(
@@ -404,7 +441,7 @@ def process_config(config_path: str):
             sm_dtw = 20 * np.log10(sm_dtw)
 
             # Plot results for system mismatch
-            plt.figure()
+            plt.figure(figsize=(3.5, 3.5 / 2))
 
             plt.plot(position, sm_nn, label="NN")
             plt.plot(position, sm_dir, label="Direct")
@@ -413,7 +450,7 @@ def process_config(config_path: str):
             plt.ylabel("System mismatch (dB)")
             plt.ylim(config["plot_sm_limits"])
             plt.title(f"System mismatch of interpolated IRs, spacing {spacing_fixpos}")
-            plt.legend()
+            plt.legend(loc="lower right")
             plt.grid()
 
             if config["export_figures"]:
@@ -429,7 +466,7 @@ def process_config(config_path: str):
     if len(config["step_patterns"]) > 1 and results is not None:
         idx_dtw = np.where(results["method"].to_numpy() == "dtw")[0]
 
-        plt.figure()
+        plt.figure(figsize=(3.5, 3.5 / 2))
         for idx in idx_dtw:
             step_pattern_str = results["step_pattern"].to_numpy()[idx]
             spacing_fixpos = results["spacing"].to_numpy()[idx]
@@ -453,7 +490,7 @@ def process_config(config_path: str):
         plt.ylabel("System mismatch (dB)")
         plt.ylim(config["plot_sm_limits"])
         plt.title(f"System mismatch of interpolated IRs - DTW step patterns")
-        plt.legend()
+        plt.legend(loc="lower right")
         plt.grid()
 
         if config["export_figures"]:
