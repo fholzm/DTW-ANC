@@ -1,5 +1,5 @@
-from pyfar.signals import noise
 import numpy as np
+from scipy.signal import medfilt
 import matplotlib
 
 matplotlib.use("Agg")
@@ -7,9 +7,20 @@ import matplotlib.pyplot as plt
 import soundfile as sf
 import os
 
-dir_audiofiles = "./results/anc_simulation"
-dir_figures = "./figures/anc_simulation"
+dir_audiofiles = "./results/anc_simulation/audiodata"
+dir_figures = "./results/figures/anc_simulation"
+medfilt_order = 501
 export_figures = True
+
+plt.rcParams["font.family"] = "Times New Roman"
+plt.rcParams["font.size"] = 1 * 8
+plt.rcParams["axes.titlesize"] = 1 * 8
+plt.rcParams["axes.labelsize"] = 1 * 8
+plt.rcParams["xtick.labelsize"] = 1 * 8
+plt.rcParams["ytick.labelsize"] = 1 * 8
+plt.rcParams["legend.fontsize"] = 1 * 8
+
+movements = [[10, 12], [22, 24], [34, 36]]
 
 
 def parse_audiofiles(directory: str) -> tuple[int, list[str]]:
@@ -45,65 +56,76 @@ def parse_audiofiles(directory: str) -> tuple[int, list[str]]:
 def main():
     os.makedirs(dir_figures, exist_ok=True)
 
-    n_realizations, methods = parse_audiofiles(dir_audiofiles)
+    n_realizations_overall, methods = parse_audiofiles(dir_audiofiles)
 
-    squared_signals = [[] for _ in range(len(methods))]
-    mean_squared_signals = []
+    signal_rms = []
+    rms_signal_mean = []
 
     min_filelength = float("inf")
 
-    for realization in range(n_realizations):
+    n_realizations = 0
+
+    # Read audio files, compute RMS, medfilt, and average across realizations
+    for realization in range(n_realizations_overall):
+        signal_rms_tmp = []
+        clipping_detected = False
         for method_idx, method in enumerate(methods):
             filename = f"realization_{realization}_{method}.wav"
             filepath = os.path.join(dir_audiofiles, filename)
 
             signal, fs = sf.read(filepath)
 
+            if np.any(np.abs(signal) >= 0.99):
+                print(f"Clipping detected in file: {filename}")
+                clipping_detected = True
+
             if len(signal) < min_filelength:
                 min_filelength = len(signal)
 
-            squared_signal = signal**2
-            squared_signals[method_idx].append(squared_signal)
+            signal_rms_tmp.append(medfilt(np.sqrt(signal[..., 0]**2), medfilt_order))
 
+        if not clipping_detected:
+            n_realizations += 1
+            signal_rms.append(signal_rms_tmp)
+
+    # Compute ensemble average of RMS values across realizations for each method
     for method_idx in range(len(methods)):
-        mean_squared_signal_tmp = np.zeros((min_filelength,))
+        rms_signal_mean_tmp = np.zeros((min_filelength,))
         for realization in range(n_realizations):
-            mean_squared_signal_tmp += squared_signals[method_idx][realization][
-                :min_filelength, 0
-            ]
-        mean_squared_signals.append(mean_squared_signal_tmp / n_realizations)
+            rms_signal_mean_tmp += signal_rms[realization][method_idx][:min_filelength]
+        rms_signal_mean.append(rms_signal_mean_tmp)
 
-    reference_idx = methods.index("reference")
+    methods_sorted = ["reference", "nn", "linear", "dtw"]
+    method_labels = ["Reference", "NN", "Linear interp.", "DTW"]
+    linecolors = ["black", "tab:blue", "tab:orange", "tab:green"]
+    linestyles = ["-", "-", "-", "-"]
 
-    noise_reduction_db = np.zeros((len(methods) - 1, min_filelength))
-    for method_idx, method in enumerate(methods):
-        if method == "reference":
-            continue
-        nr_db = 10 * np.log10(
-            mean_squared_signals[reference_idx] / mean_squared_signals[method_idx]
-        )
-        noise_reduction_db[method_idx - 1, :] = nr_db
 
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(3.5, 2))
     time_axis = np.arange(min_filelength) / fs
 
-    for method_idx, method in enumerate(methods):
-        if method == "reference":
-            continue
+    for idx, method in enumerate(methods_sorted):
+        method_idx = methods.index(method)
         plt.plot(
-            time_axis,
-            noise_reduction_db[method_idx - 1, :],
-            label=f"{method}",
+            time_axis[medfilt_order:],
+            20 * np.log10(rms_signal_mean[method_idx][medfilt_order // 2 + 1:-medfilt_order // 2 + 1]),
+            label=method_labels[idx],
+            color=linecolors[idx],
+            linestyle=linestyles[idx],
         )
+
+    for movement in movements:
+        plt.axvspan(movement[0], movement[1], facecolor="gray", edgecolor=None, alpha=0.5, label="Movement" if movement == movements[0] else None)
+
+
     plt.xlabel("Time (s)")
-    plt.ylabel("Noise Reduction (dB)")
-    plt.title("ANC Noise Reduction over Time")
-    plt.gca().invert_yaxis()
-    plt.legend()
+    plt.ylabel("RMS Amplitude (dB)")
+    # plt.title("ANC Signal RMS over Time")
+    plt.legend(loc='lower center', bbox_to_anchor=(0.5, 1.0), ncol=3, borderaxespad=0, frameon=False)
     plt.grid()
     plt.tight_layout()
     if export_figures:
-        plt.savefig(os.path.join(dir_figures, "anc_noise_reduction.png"))
+        plt.savefig(os.path.join(dir_figures, "anc_rms_signal.png"), dpi=600)
 
 
 if __name__ == "__main__":

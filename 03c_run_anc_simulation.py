@@ -88,7 +88,7 @@ def main():
                 f.write(
                     f"open -bytes 3 -rate {fs} "
                     + os.path.abspath(
-                        f"results/anc_simulation/realization_{realization}_{interp_type}.wav"
+                        f"results/anc_simulation/audiodata/realization_{realization}_{interp_type}.wav"
                     )
                     + ";\n"
                 )
