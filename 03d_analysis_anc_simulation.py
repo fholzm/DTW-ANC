@@ -9,7 +9,7 @@ import os
 
 dir_audiofiles = "./results/anc_simulation/audiodata"
 dir_figures = "./results/figures/anc_simulation"
-medfilt_order = 501
+rms_length = 100  # in ms
 export_figures = True
 
 plt.rcParams["font.family"] = "Times New Roman"
@@ -53,6 +53,24 @@ def parse_audiofiles(directory: str) -> tuple[int, list[str]]:
     return n_realizations, methods
 
 
+def sliding_window_rms(signal, window_size):
+    """Calculates the root mean square of a signal using a sliding window.
+
+    Parameters
+    ----------
+    signal : np.ndarray
+        Input signal.
+    window_size : int
+        Size of the sliding window.
+
+    Returns
+    -------
+    np.ndarray
+        RMS signal.
+    """
+    return np.sqrt(np.convolve(signal**2, np.ones(window_size)/window_size, mode='same'))
+
+
 def main():
     os.makedirs(dir_figures, exist_ok=True)
 
@@ -82,7 +100,7 @@ def main():
             if len(signal) < min_filelength:
                 min_filelength = len(signal)
 
-            signal_rms_tmp.append(medfilt(np.sqrt(signal[..., 0]**2), medfilt_order))
+            signal_rms_tmp.append(sliding_window_rms(signal[..., 0], int(rms_length * fs / 1000)))
 
         if not clipping_detected:
             n_realizations += 1
@@ -107,8 +125,8 @@ def main():
     for idx, method in enumerate(methods_sorted):
         method_idx = methods.index(method)
         plt.plot(
-            time_axis[medfilt_order:],
-            20 * np.log10(rms_signal_mean[method_idx][medfilt_order // 2 + 1:-medfilt_order // 2 + 1]),
+            time_axis[rms_length * fs // 1000:],
+            20 * np.log10(rms_signal_mean[method_idx][rms_length * fs // 1000 // 2 + 1:-rms_length * fs // 1000 // 2 + 1]),
             label=method_labels[idx],
             color=linecolors[idx],
             linestyle=linestyles[idx],
@@ -123,7 +141,7 @@ def main():
     # plt.title("ANC Signal RMS over Time")
     plt.legend(loc='lower center', bbox_to_anchor=(0.5, 1.0), ncol=3, borderaxespad=0, frameon=False)
     plt.grid()
-    plt.tight_layout()
+    plt.tight_layout(pad=0.1)
     if export_figures:
         plt.savefig(os.path.join(dir_figures, "anc_rms_signal.png"), dpi=600)
 
