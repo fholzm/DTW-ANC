@@ -1,12 +1,9 @@
 import numpy as np
-from scipy import signal
-import sofar as sf
 import matplotlib.pyplot as plt
-from utils import metrics, interpolate
-import pandas as pd
-import os
-import toml
-import glob
+import matplotlib
+from utils import interpolate
+
+matplotlib.use("Agg")  # Use non-interactive backend for figure generation
 
 config = {
     "fn_output": "anc_simulation/faust_dsp/eval_anc_irs.h",

@@ -7,9 +7,9 @@ from tqdm import tqdm
 
 fs = 16000
 blocksize = 16
-noise_cutoff_freq = 1500.0  # Hz
+noise_cutoff_freq = 1000.0  # Hz
 start_position = 0.25  # meters
-n_realizations = 100
+n_realizations = 50
 stepsize = 0.01
 interpolation_types = ["reference", "nn", "linear", "dtw"]
 
@@ -21,7 +21,7 @@ port_pd = 9004
 
 def main():
     # Create directory for results
-    os.makedirs("results/anc_simulation", exist_ok=True)
+    os.makedirs("results/anc_simulation/audiodata", exist_ok=True)
 
     # %% OSC configuration
     # noise source

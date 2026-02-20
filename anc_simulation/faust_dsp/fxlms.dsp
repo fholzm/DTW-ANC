@@ -14,7 +14,7 @@ fxlms_siso(order, ctl_stepsize, ctl_reset, ctl_adapt, ctl_delay, e, x, r) = (si.
     apply_filter = si.bus(order) <: sum(i, order, ba.selector(i, order) * (x : @(i)));
 };
 
-order = 256;
+order = 192;
 in_level = abs : ba.linear2db : si.smoo : hbargraph("[7]Level L[unit:dB]",-100,-40);
 
 

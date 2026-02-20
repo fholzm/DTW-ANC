@@ -9,7 +9,7 @@ import os
 import toml
 import glob
 
-# matplotlib.use("Agg")  # Use non-interactive backend for figure generation
+matplotlib.use("Agg")  # Use non-interactive backend for figure generation
 
 # Configure figure defaults --> 8 pt Times New Roman
 plt.rcParams["font.family"] = "Times New Roman"

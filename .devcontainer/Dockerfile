@@ -13,6 +13,7 @@ ENV PYTHONDONTWRITEBYTECODE=True \
 # hadolint ignore=DL3008
 RUN apt-get update \
     && echo "jackd jackd/tweak_rt_limits boolean true" | debconf-set-selections \
+    && echo "msttcorefonts msttcorefonts/accepted-mscorefonts-eula boolean true" | debconf-set-selections \
     && apt-get install -y --no-install-recommends\
     build-essential \
     bzip2 \
