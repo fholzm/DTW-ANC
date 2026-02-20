@@ -384,7 +384,7 @@ def plot_mag_phase_error_multiplot(
             if methods[idx] == "nn":
                 method_name = "NN"
             elif methods[idx] == "direct":
-                method_name = "Lin. interp."
+                method_name = "Linear interp."
             elif methods[idx] == "dtw":
                 method_name = "DTW"
             else:
