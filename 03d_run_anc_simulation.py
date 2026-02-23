@@ -9,7 +9,7 @@ fs = 16000
 blocksize = 16
 noise_cutoff_freq = 1000.0  # Hz
 start_position = 0.25  # meters
-n_realizations = 50
+n_realizations = 1
 stepsize = 0.01
 interpolation_types = ["reference", "nn", "linear", "dtw"]
 
@@ -24,20 +24,6 @@ def main():
     os.makedirs("results/anc_simulation/audiodata", exist_ok=True)
 
     # %% OSC configuration
-    # noise source
-    parser_src = argparse.ArgumentParser()
-    parser_src.add_argument(
-        "--ip", default="127.0.0.1", help="The ip of the OSC server"
-    )
-    parser_src.add_argument(
-        "--port",
-        type=int,
-        default=port_src,
-        help="The port the OSC server is listening on",
-    )
-    args_src = parser_src.parse_args()
-    client_src = udp_client.SimpleUDPClient(args_src.ip, args_src.port)
-
     # Secondary path filter
     parser_secpath = argparse.ArgumentParser()
     parser_secpath.add_argument(
@@ -83,7 +69,16 @@ def main():
         for interp_type in tqdm(
             interpolation_types, desc="Interpolation Types", leave=False
         ):
-            # Set target directory for recorded data
+            with open("anc_simulation/fn_read.txt", "w") as f:
+                f.write(
+                    f"open "
+                    + os.path.abspath(
+                        f"results/anc_simulation/audiodata/innov/noise_{realization}.wav"
+                    )
+                    + ";\n"
+                )
+
+            # Set target directory for innovation signal and recorded data
             with open("anc_simulation/fn_write.txt", "w") as f:
                 f.write(
                     f"open -bytes 3 -rate {fs} "
@@ -105,7 +100,7 @@ def main():
                     "-inchannels",
                     "2",
                     "-outchannels",
-                    "0",
+                    "1",
                     "./anc_simulation/anc_record.pd",
                 ],
                 stdout=subprocess.DEVNULL,
@@ -136,22 +131,6 @@ def main():
                 stderr=subprocess.STDOUT,
             )
 
-            p_noisesrc = subprocess.Popen(
-                [
-                    "./anc_simulation/faust_dsp/noise",
-                    "-xmit",
-                    "1",
-                    "-port",
-                    str(port_src),
-                ],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.STDOUT,
-            )
-
-            time.sleep(0.1)
-            client_src.send_message("/Noise_Generator/Active", 0)
-            client_src.send_message("/Noise_Generator/Realization", realization)
-            client_src.send_message("/Noise_Generator/LP", noise_cutoff_freq)
             time.sleep(0.1)
 
             p_tascar = subprocess.Popen(
@@ -185,9 +164,6 @@ def main():
             )
             time.sleep(0.1)
 
-            client_src.send_message("/Noise_Generator/Active", 1)
-            time.sleep(0.1)
-
             # Reset filter coefficients
             client_fxlms.send_message("/ANC_control_filter/Adaptation/Reset", 1)
             time.sleep(0.1)
@@ -215,6 +191,7 @@ def main():
             client_pd.send_message("/position", [start_position, 0])
             time.sleep(1)
 
+            client_pd.send_message("/play", 1)
             client_pd.send_message("/record", 1)
             time.sleep(1)
 
@@ -229,13 +206,14 @@ def main():
             client_pd.send_message("/position", [0.475, 2000])
             time.sleep(12)
 
-            client_pd.send_message("/position", [0.6, 2000])
+            client_pd.send_message("/position", [0.55, 2000])
             time.sleep(12)
 
-            client_pd.send_message("/position", [0.9, 2000])
+            client_pd.send_message("/position", [0.625, 2000])
             time.sleep(12)
 
             client_pd.send_message("/record", 0)
+            client_pd.send_message("/play", 0)
             time.sleep(1)
 
             os.system("./jcmess -D")
@@ -244,7 +222,6 @@ def main():
             p_pd.kill()
             p_controlfilter.kill()
             p_secpath.kill()
-            p_noisesrc.kill()
             p_tascar.kill()
             time.sleep(3)
 

@@ -11,10 +11,14 @@ def main():
         ]
     )
     subprocess.run(
-        ["faust2jackconsole", "-double", "-osc", "-t", "-1", "anc_simulation/faust_dsp/fxlms.dsp"]
-    )
-    subprocess.run(
-        ["faust2jackconsole", "-double", "-osc", "anc_simulation/faust_dsp/noise.dsp"]
+        [
+            "faust2jackconsole",
+            "-double",
+            "-osc",
+            "-t",
+            "-1",
+            "anc_simulation/faust_dsp/fxlms.dsp",
+        ]
     )
 
 
