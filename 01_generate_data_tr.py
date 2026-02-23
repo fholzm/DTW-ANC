@@ -123,10 +123,10 @@ def main():
     irs = np.array(results).transpose(0, 2, 1)
 
     # Save results to file
-    if not os.path.exists("data/TASCAR_IRs"):
-        os.mkdir("data/TASCAR_IRs")
+    if not os.path.exists("results/data/TASCAR_IRs"):
+        os.makedirs("results/data/TASCAR_IRs")
     np.savez(
-        "data/TASCAR_IRs/measured_irs_tr.npz",
+        "results/data/TASCAR_IRs/measured_irs_tr.npz",
         irs=irs,
         positions=positions_to_test * 100,  # save in cm
         fs=fs,

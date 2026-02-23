@@ -3,11 +3,11 @@ import soundfile as sf
 from scipy import signal
 import os
 
-n_realizations = 50
+n_realizations = 100
 fs = 16000
 sig_length = 50 * fs  # 50 seconds
 lp_cutoff = 1000.0  # Hz
-lp_order = 6
+lp_order = 8
 seed = 42
 
 

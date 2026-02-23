@@ -9,7 +9,7 @@ fs = 16000
 blocksize = 16
 noise_cutoff_freq = 1000.0  # Hz
 start_position = 0.25  # meters
-n_realizations = 50
+n_realizations = 100
 stepsize = 0.01
 interpolation_types = ["reference", "nn", "linear", "dtw"]
 
@@ -206,10 +206,10 @@ def main():
             client_pd.send_message("/position", [0.475, 2000])
             time.sleep(12)
 
-            client_pd.send_message("/position", [0.55, 2000])
+            client_pd.send_message("/position", [0.60, 2000])
             time.sleep(12)
 
-            client_pd.send_message("/position", [0.625, 2000])
+            client_pd.send_message("/position", [0.325, 2000])
             time.sleep(12)
 
             client_pd.send_message("/record", 0)

@@ -9,9 +9,9 @@ config = {
     "fn_output": "anc_simulation/faust_dsp/eval_anc_irs.h",
     "mode": "tr",  # 'tr' or 'rot'
     "precision": "double",  # 'float' or 'double'
-    "dataset_path": "data/TASCAR_IRs/measured_irs_tr.npz",
+    "dataset_path": "results/data/TASCAR_IRs/measured_irs_tr.npz",
     "spacing_fixpos": 15.0,  # spacing of the reference points, centimeters
-    "step_patterns": "symmetricP2",  # Allowed step patterns for DTW
+    "step_patterns": "symmetric1",  # Allowed step patterns for DTW
     "ir_range": [0, 64],  # taps of the IR to consider in analysis (was: range(0, 64))
     "export_results": True,
 }

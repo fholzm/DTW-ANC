@@ -40,7 +40,7 @@ def parse_audiofiles(directory: str) -> tuple[int, list[str]]:
     """
 
     # List all files in the directory
-    all_files = os.listdir(directory)
+    all_files = [f for f in os.listdir(directory) if f.endswith('.wav')]
 
     fn_pattern = [file.split(".wav")[0].split("_") for file in all_files]
 

@@ -1,7 +1,7 @@
 fn_output_prefix = "eval_spacing_tr_"
 fn_result_dir = "results/metrics/eval_spacing_tr/"
 fn_figure_dir = "results/figures/eval_spacing_tr/"
-dataset_path = "data/TASCAR_IRs/measured_irs_tr.npz"
+dataset_path = "results/data/TASCAR_IRs/measured_irs_tr.npz"
 mode = "tr"
 spacing_fixpos = [2.5, 5.0, 7.5, 12.5, 15.0, 25.0]  # spacing of the reference points, centimeters
 interpolation_methods = ["nn", "direct", "dtw"]  # Methods to test
