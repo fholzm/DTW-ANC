@@ -6,7 +6,7 @@ import os
 n_realizations = 50
 fs = 16000
 sig_length = 50 * fs  # 50 seconds
-lp_cutoss = 1000.0  # Hz
+lp_cutoff = 1000.0  # Hz
 lp_order = 6
 seed = 42
 
@@ -14,7 +14,7 @@ seed = 42
 def main():
     os.makedirs("results/anc_simulation/audiodata/innov", exist_ok=True)
 
-    sos = signal.butter(lp_order, lp_cutoss, btype="low", fs=fs, output="sos")
+    sos = signal.butter(lp_order, lp_cutoff, btype="low", fs=fs, output="sos")
 
     for realization in range(n_realizations):
         np.random.seed(seed + realization)
