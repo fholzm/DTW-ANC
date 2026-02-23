@@ -10,6 +10,7 @@
 *.tsc
 !tascar_sim.tsc
 anc_simulation/fn_write.txt
+anc_simulation/fn_read.txt
 anc_simulation/faust_dsp/eval_anc_irs.h
 tmp*
 faust.*
