@@ -1,9 +1,9 @@
-fn_output_prefix = "eval_steppattern_tr_"
-fn_result_dir = "results/metrics/eval_steppattern_tr/"
-fn_figure_dir = "results/figures/eval_steppattern_tr/"
-dataset_path = "results/data/TASCAR_IRs/measured_irs_tr.npz"
-mode = "tr"
-spacing_fixpos = [15.0]  # spacing of the reference points, centimeters
+fn_output_prefix = "eval_steppattern_rot_"
+fn_result_dir = "../results/metrics/eval_steppattern_rot/"
+fn_figure_dir = "../results/figures/eval_steppattern_rot/"
+dataset_path = "../data/THK_NF/HRIR_CIRC360_NF025.sofa"
+mode = "rot"
+spacing_fixpos = [30]  # spacing of the reference points, centimeters
 interpolation_methods = ["nn", "direct", "dtw"]  # Methods to test
 dewarping_interpolator = "cs"  # Interpolator to extract values at integer positions after dewarping
 step_patterns = [
@@ -33,7 +33,7 @@ step_patterns = [
     "mvm5",
     "mvm10"
 ]  # Allowed step patterns for DTW
-ir_ds_factor = 1  # downsampling factor for IRs
+ir_ds_factor = 3  # downsampling factor for IRs
 ir_range = [0, 64]  # taps of the IR to consider in analysis (was: range(0, 64))
 plot_sm_limits = [-40, 8]  # dB
 plot_mag_limits = [-30, 0]  # dB

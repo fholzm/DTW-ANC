@@ -6,7 +6,7 @@
         "vscode"
     ],
     "remoteUser": "vscode",
-    "workspaceFolder": "/workspace",
+    "workspaceFolder": "/workspace/code",
     "mounts": [
         {
             "source": "cache-${devcontainerId}",

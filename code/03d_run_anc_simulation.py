@@ -22,7 +22,7 @@ port_pd = 9004
 
 def main():
     # Create directory for results
-    os.makedirs("results/anc_simulation/audiodata", exist_ok=True)
+    os.makedirs("../results/anc_simulation/audiodata", exist_ok=True)
 
     # %% OSC configuration
     # Secondary path filter
@@ -66,7 +66,9 @@ def main():
     client_pd = udp_client.SimpleUDPClient(args_pd.ip, args_pd.port)
 
     # %% Run simulations with multiple noise realizations
-    for realization in tqdm(range(start_realization, n_realizations), desc="Noise Realizations"):
+    for realization in tqdm(
+        range(start_realization, n_realizations), desc="Noise Realizations"
+    ):
         for interp_type in tqdm(
             interpolation_types, desc="Interpolation Types", leave=False
         ):
@@ -74,7 +76,7 @@ def main():
                 f.write(
                     f"open "
                     + os.path.abspath(
-                        f"results/anc_simulation/audiodata/innov/noise_{realization}.wav"
+                        f"../results/anc_simulation/audiodata/innov/noise_{realization}.wav"
                     )
                     + ";\n"
                 )
@@ -84,7 +86,7 @@ def main():
                 f.write(
                     f"open -bytes 3 -rate {fs} "
                     + os.path.abspath(
-                        f"results/anc_simulation/audiodata/realization_{realization}_{interp_type}.wav"
+                        f"../results/anc_simulation/audiodata/realization_{realization}_{interp_type}.wav"
                     )
                     + ";\n"
                 )

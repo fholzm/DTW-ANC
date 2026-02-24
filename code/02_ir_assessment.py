@@ -392,6 +392,7 @@ def process_config(config_path: str):
     # Plot system mismatch
     reg_smplot = 10 ** (config["plot_sm_limits"][0] / 20)
     if len(config["spacing_fixpos"]) > 1 and results is not None:
+        fn = "../results/figures/holzm2.png" if config["mode"] == "tr" else "../results/figures/holzm3.png"
         metrics.plot_mag_phase_error_multiplot(
             position,
             spacings,
@@ -403,7 +404,7 @@ def process_config(config_path: str):
             stable_freq_all,
             config,
             config["export_figures"],
-            config["fn_figure_dir"] + f"fd_error_{config["mode"]}_all.png",
+            config["fn_figure_dir"] + fn,
         )
 
         for spacing_fixpos in config["spacing_fixpos"]:

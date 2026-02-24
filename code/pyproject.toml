@@ -1,7 +1,7 @@
 [project]
-name = "CHAI"
+name = "DTW-ANC"
 version = "0.1.0"
-description = "Add your description here"
+description = "Dynamic Time Warping for Secondary Path Interpolation in Local Active Noise Control"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

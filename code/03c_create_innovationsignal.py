@@ -12,7 +12,7 @@ seed = 42
 
 
 def main():
-    os.makedirs("results/anc_simulation/audiodata/innov", exist_ok=True)
+    os.makedirs("../results/anc_simulation/audiodata/innov", exist_ok=True)
 
     sos = signal.butter(lp_order, lp_cutoff, btype="low", fs=fs, output="sos")
 
@@ -21,7 +21,7 @@ def main():
         noise = np.random.uniform(-1, 1, sig_length)
         noise = signal.sosfilt(sos, noise)
 
-        filename = f"results/anc_simulation/audiodata/innov/noise_{realization}.wav"
+        filename = f"../results/anc_simulation/audiodata/innov/noise_{realization}.wav"
         sf.write(filename, noise, fs)
 
 

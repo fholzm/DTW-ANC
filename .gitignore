@@ -9,15 +9,13 @@
 
 *.tsc
 !tascar_sim.tsc
-anc_simulation/fn_write.txt
-anc_simulation/fn_read.txt
-anc_simulation/faust_dsp/eval_anc_irs.h
+code/anc_simulation/fn_write.txt
+code/anc_simulation/fn_read.txt
+code/anc_simulation/faust_dsp/eval_anc_irs.h
 tmp*
 faust.*
-config.toml
+code/config.toml
 results/*
-figures/*
-data/TASCAR_IRs/*
 
 !*/.gitkeep
 

@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 import soundfile as sf
 import os
 
-dir_audiofiles = "./results/anc_simulation/audiodata"
-dir_figures = "./results/figures/anc_simulation"
+dir_audiofiles = "../results/anc_simulation/audiodata"
+dir_figures = "../results/figures/"
 rms_length = 100  # in ms
 export_figures = True
 
@@ -40,7 +40,7 @@ def parse_audiofiles(directory: str) -> tuple[int, list[str]]:
     """
 
     # List all files in the directory
-    all_files = [f for f in os.listdir(directory) if f.endswith('.wav')]
+    all_files = [f for f in os.listdir(directory) if f.endswith(".wav")]
 
     fn_pattern = [file.split(".wav")[0].split("_") for file in all_files]
 
@@ -68,7 +68,9 @@ def sliding_window_rms(signal, window_size):
     np.ndarray
         RMS signal.
     """
-    return np.sqrt(np.convolve(signal**2, np.ones(window_size)/window_size, mode='same'))
+    return np.sqrt(
+        np.convolve(signal**2, np.ones(window_size) / window_size, mode="same")
+    )
 
 
 def main():
@@ -100,7 +102,9 @@ def main():
             if len(signal) < min_filelength:
                 min_filelength = len(signal)
 
-            signal_rms_tmp.append(sliding_window_rms(signal[..., 0], int(rms_length * fs / 1000)))
+            signal_rms_tmp.append(
+                sliding_window_rms(signal[..., 0], int(rms_length * fs / 1000))
+            )
 
         if not clipping_detected:
             n_realizations += 1
@@ -118,32 +122,48 @@ def main():
     linecolors = ["black", "tab:blue", "tab:orange", "tab:green"]
     linestyles = ["-", "-", "-", "-"]
 
-
     plt.figure(figsize=(3.5, 1.75))
     time_axis = np.arange(min_filelength) / fs
 
     for idx, method in enumerate(methods_sorted):
         method_idx = methods.index(method)
         plt.plot(
-            time_axis[rms_length * fs // 1000:-rms_length * fs // 1000],
-            20 * np.log10(rms_signal_mean[method_idx][rms_length * fs // 1000 : - rms_length * fs // 1000]),
+            time_axis[rms_length * fs // 1000 : -rms_length * fs // 1000],
+            20
+            * np.log10(
+                rms_signal_mean[method_idx][
+                    rms_length * fs // 1000 : -rms_length * fs // 1000
+                ]
+            ),
             label=method_labels[idx],
             color=linecolors[idx],
             linestyle=linestyles[idx],
         )
 
     for movement in movements:
-        plt.axvspan(movement[0], movement[1], facecolor="gray", edgecolor=None, alpha=0.5, label="Movement" if movement == movements[0] else None)
-
+        plt.axvspan(
+            movement[0],
+            movement[1],
+            facecolor="gray",
+            edgecolor=None,
+            alpha=0.5,
+            label="Movement" if movement == movements[0] else None,
+        )
 
     plt.xlabel("Time (s)")
     plt.ylabel("RMS Amplitude (dB)")
     plt.xlim(0, 46)
-    plt.legend(loc='lower center', bbox_to_anchor=(0.5, 1.0), ncol=3, borderaxespad=0, frameon=False)
+    plt.legend(
+        loc="lower center",
+        bbox_to_anchor=(0.5, 1.0),
+        ncol=3,
+        borderaxespad=0,
+        frameon=False,
+    )
     plt.grid()
     plt.tight_layout(pad=0.1)
     if export_figures:
-        plt.savefig(os.path.join(dir_figures, "anc_rms_signal.png"), dpi=600)
+        plt.savefig(os.path.join(dir_figures, "holzm5.png"), dpi=600)
 
 
 if __name__ == "__main__":
