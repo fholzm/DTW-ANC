@@ -119,14 +119,14 @@ def main():
     linestyles = ["-", "-", "-", "-"]
 
 
-    plt.figure(figsize=(3.5, 2))
+    plt.figure(figsize=(3.5, 1.75))
     time_axis = np.arange(min_filelength) / fs
 
     for idx, method in enumerate(methods_sorted):
         method_idx = methods.index(method)
         plt.plot(
-            time_axis[rms_length * fs // 1000:],
-            20 * np.log10(rms_signal_mean[method_idx][rms_length * fs // 1000 // 2 + 1:-rms_length * fs // 1000 // 2 + 1]),
+            time_axis[rms_length * fs // 1000:-rms_length * fs // 1000],
+            20 * np.log10(rms_signal_mean[method_idx][rms_length * fs // 1000 : - rms_length * fs // 1000]),
             label=method_labels[idx],
             color=linecolors[idx],
             linestyle=linestyles[idx],
@@ -138,7 +138,7 @@ def main():
 
     plt.xlabel("Time (s)")
     plt.ylabel("RMS Amplitude (dB)")
-    # plt.title("ANC Signal RMS over Time")
+    plt.xlim(0, 46)
     plt.legend(loc='lower center', bbox_to_anchor=(0.5, 1.0), ncol=3, borderaxespad=0, frameon=False)
     plt.grid()
     plt.tight_layout(pad=0.1)

@@ -10,6 +10,7 @@ blocksize = 16
 noise_cutoff_freq = 1000.0  # Hz
 start_position = 0.25  # meters
 n_realizations = 100
+start_realization = 0
 stepsize = 0.01
 interpolation_types = ["reference", "nn", "linear", "dtw"]
 
@@ -65,7 +66,7 @@ def main():
     client_pd = udp_client.SimpleUDPClient(args_pd.ip, args_pd.port)
 
     # %% Run simulations with multiple noise realizations
-    for realization in tqdm(range(n_realizations), desc="Noise Realizations"):
+    for realization in tqdm(range(start_realization, n_realizations), desc="Noise Realizations"):
         for interp_type in tqdm(
             interpolation_types, desc="Interpolation Types", leave=False
         ):
