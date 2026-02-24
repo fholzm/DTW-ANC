@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Install Python dependencies from pyproject.toml using uv
+cd /code
+uv sync --no-dev

@@ -1,0 +1,37 @@
+metadata_version: 1
+name: Dynamic Time Warping for Secondary Path Interpolation in Local Active Noise
+  Control
+description: For stable and performant local active noise control (ANC), accurate
+  estimates of the secondary path between sources and the desired point of cancellation
+  are required. This poses a problem in time-variant scenes with variable point of
+  cancellation, as in practice these paths are recorded prior to operation for a limited
+  number of positions. In this article, we propose an interpolation approach for impulse
+  responses of secondary paths. By applying dynamic time warping (DTW), impulse responses
+  are properly aligned before interpolation and de-warping. The system is benchmarked
+  against nearest-neighbor and linear interpolation for translation and rotation of
+  the listener's head. Our DTW-based technique exhibits lower overall system mismatch
+  and extends the frequency range for stable operation, especially for lateral translation
+  and coarse measurement grids. It outperforms the other systems especially in terms
+  of phase error towards high frequencies. In simulation, an up to 15 dB higher noise
+  reduction could be achieved for broadband disturbances. The proposed technique can
+  potentially reduce the required number of measurement positions of secondary paths
+  substantially while increasing the controlled frequency bandwidth for time-variant
+  real-world systems.
+tags:
+- ANC
+- Active Noise Control
+- Alignment
+- Dynamic Time Warping
+- Interpolation
+authors:
+- name: Felix Holzmüller
+  affiliations:
+  - name: Institute of Electronic Music and Acoustics, University of Music and Performing
+      Arts Graz (Austria)
+- name: Alois Sontacchi
+  affiliations:
+  - name: Institute of Electronic Music and Acoustics, University of Music and Performing
+      Arts Graz (Austria)
+corresponding_contributor:
+  name: Felix Holzmüller
+  email: holzmueller@iem.at

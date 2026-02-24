@@ -1,11 +1,13 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Script to run data generation and IR assessment
+# ── Start JACK audio server (dummy backend, required by TASCAR) ──────────
+if ! pgrep -x jackd >/dev/null 2>&1; then
+  jackd --no-realtime  -m -d dummy -r 16000 -p 16 &
+  sleep 0.5
+fi
 
-set -e  # Exit on error
-
-# Activate virtual environment
-source .venv/bin/activate
+cd /code
 
 echo "Starting ANC simulation pipeline..."
 echo ""

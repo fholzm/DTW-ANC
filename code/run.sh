@@ -1,7 +1,13 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Script to run data generation and IR assessment
-set -e  # Exit on error
+# ── Start JACK audio server (dummy backend, required by TASCAR) ──────────
+if ! pgrep -x jackd >/dev/null 2>&1; then
+  jackd --no-realtime  -m -d dummy -r 16000 -p 16 &
+  sleep 0.5
+fi
+
+cd /code
 
 echo "Starting pipeline..."
 echo ""
