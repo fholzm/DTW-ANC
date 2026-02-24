@@ -404,7 +404,7 @@ def process_config(config_path: str):
             stable_freq_all,
             config,
             config["export_figures"],
-            config["fn_figure_dir"] + fn,
+            fn,
         )
 
         for spacing_fixpos in config["spacing_fixpos"]:
