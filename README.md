@@ -4,9 +4,9 @@ For stable and performant local active noise control (ANC), accurate estimates o
 
 ## Usage
 
-Navigate to the `code/` directory. All experiments are written in Python, you can run them using the `run.sh` file on UN*X systems. An environment with all required packages can be easily installed via [uv](https://docs.astral.sh/uv/). To generate data and perform the ANC experiments, [TASCAR](https://tascar.org/), Jack, and [FAUST](https://faust.grame.fr/) are required and accesisble in your systems path. For ease of use, you can run the code in the provided Ubuntu-based [devcontainer](https://containers.dev/), which comes with all necessary dependencies.
+Navigate to the `code/` directory. All experiments are written in Python, you can run them using the `code/run.sh` file on UN*X systems. An environment with all required packages can be easily installed via [uv](https://docs.astral.sh/uv/). To generate data and perform the ANC experiments, [TASCAR](https://tascar.org/), Jack, and [FAUST](https://faust.grame.fr/) are required and accesisble in your systems path. For ease of use, you can run the code in the provided Ubuntu-based [devcontainer](https://containers.dev/), which comes with all necessary dependencies.
 
-Although the ANC simulations don't require much processing power, they take a lot of time to run (400 simulations with 46 seconds length in real time) and tend to stall sometimes. For this reason, they can be manually started by running the `run_ancsim.sh` files.
+Although the ANC simulations don't require much processing power, they take a lot of time to run (400 simulations with 46 seconds length in real time) and tend to stall sometimes. For this reason, they can be manually started by running the `code/run_ancsim.sh` files.
 
 ## Structure
 
@@ -28,7 +28,7 @@ The code is structured this way:
 - `data/THK_NF/` contains a near-field HRIR dataset by TH Köln, which is used for the experiments.
 - `results/` contains the results of the experiments, including the metrics as `*.csv` and the figures.
 - `third-party-licenses/` contains the licenses for the third-party code and data used in this repository.
-- `devcontainer/` contains the configuration for the development container, which can be used to run the code in a consistent environment.
+- `.devcontainer/` contains the configuration for the development container, which can be used to run the code in a consistent environment.
 
 ## Citation
 
