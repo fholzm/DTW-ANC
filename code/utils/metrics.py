@@ -375,7 +375,7 @@ def plot_mag_phase_error_multiplot(
             if i < n_spacings - 1:
                 ax_phase.tick_params(labelbottom=False)
             else:
-                ax_phase.set_xlabel(label_pos, labelpad=-0.5)
+                ax_phase.set_xlabel(label_pos, labelpad=1)
 
             # Subfigure caption below each mag/phase column pair
             caption_idx = i * nc + j
@@ -384,7 +384,7 @@ def plot_mag_phase_error_multiplot(
             if methods[idx] == "nn":
                 method_name = "NN"
             elif methods[idx] == "direct":
-                method_name = "Linear interp."
+                method_name = "LI"
             elif methods[idx] == "dtw":
                 method_name = "DTW"
             else:

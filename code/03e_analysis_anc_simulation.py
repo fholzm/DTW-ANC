@@ -118,7 +118,7 @@ def main():
         rms_signal_mean.append(rms_signal_mean_tmp)
 
     methods_sorted = ["reference", "nn", "linear", "dtw"]
-    method_labels = ["Reference", "NN", "Linear interp.", "DTW"]
+    method_labels = ["Reference", "NN", "LI", "DTW"]
     linecolors = ["black", "tab:blue", "tab:orange", "tab:green"]
     linestyles = ["-", "-", "-", "-"]
 
