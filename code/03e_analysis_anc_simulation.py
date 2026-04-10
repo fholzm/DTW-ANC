@@ -163,7 +163,7 @@ def main():
     plt.grid()
     plt.tight_layout(pad=0.1)
     if export_figures:
-        plt.savefig(os.path.join(dir_figures, "holzm5.png"), dpi=600)
+        plt.savefig(os.path.join(dir_figures, "holzm6.png"), dpi=600)
 
 
 if __name__ == "__main__":
