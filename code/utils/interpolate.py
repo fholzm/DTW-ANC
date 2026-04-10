@@ -4,6 +4,29 @@ from scipy.interpolate import CubicSpline
 from romanutils import rtoi
 
 
+def get_global_alignment(ir_query: np.ndarray, ir_reference: np.ndarray):
+    """Calculate time offset through cross correlation for global alignment
+
+    Parameters
+    ----------
+    ir_query : np.ndarray
+        Impulse response to be aligned
+    ir_reference : np.ndarray
+        Reference impulse response
+
+    Returns
+    -------
+    time_offset: int
+        Time offset to apply to ir_query for global alignment with ir_reference
+    """
+
+    # Calculate cross-correlation between the two IRs
+    cross_correlation = np.correlate(ir_query, ir_reference, mode="full")
+    time_offset = np.argmax(cross_correlation) - (len(ir_reference) - 1)
+
+    return -time_offset
+
+
 def select_step_pattern(step_pattern_name: str) -> dtw.StepPattern:
     """Select DTW step pattern based on name
 
@@ -41,8 +64,6 @@ def select_step_pattern(step_pattern_name: str) -> dtw.StepPattern:
         step_pattern = dtw.mvmStepPattern(elasticity)
     else:
         raise ValueError(f"Unknown step pattern: {step_pattern_name}")
-
-    # TODO: Add Rabiner-Juang patterns
 
     return step_pattern
 
