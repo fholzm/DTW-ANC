@@ -84,19 +84,20 @@ if __name__ == "__main__":
     # Calculate and plot DTW alignment
     step_pattern = interpolate.select_step_pattern(config["step_patterns"][0])
     ax = dtw.dtw(ir0, ir1, step_pattern=step_pattern, keep_internals=True).plot(
-        type="twoway", offset=-0.04
+        type="twoway", offset=-0.05
     )
 
     # Update figure properties
     fig = ax.figure
-    fig.set_size_inches(3.5, 1.6)
+    fig.set_size_inches(3.5, 1.4)
 
     # Axis labels and title
     ax.set_xlabel("Taps")
-    ax.set_ylabel(f"Coefficient at {angle_eval[0]}°")
+    ax.set_ylabel(f"Coefficients at {angle_eval[0]}°")
 
     right_ax = fig.axes[1]
-    right_ax.set_ylabel(f"Coefficient at {angle_eval[1]}°", color="blue")
+    right_ax.set_ylabel(f"Coefficients at {angle_eval[1]}°", color="tab:blue")
+    right_ax.tick_params(axis="y", colors="tab:blue")
 
     # Limits / grid / ticks
     ax.set_xlim(0, len(ir0))
@@ -115,7 +116,7 @@ if __name__ == "__main__":
     )
 
     # Layout and save/show
-    fig.tight_layout()
+    fig.tight_layout(pad=0.1)
 
     if config["export_figures"]:
         plt.savefig("../results/figures/holzm5.pdf")
