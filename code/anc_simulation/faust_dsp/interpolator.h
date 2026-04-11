@@ -100,6 +100,23 @@ void interpolate_nn (double alpha)
     }
 }
 
+void apply_shift (std::vector<double>& ir, int shift)
+{
+    if (shift < 0)
+    {
+        // Shift left: remove from beginning, append zeros at end
+        int left_shift = -shift;
+        ir.erase (ir.begin(), ir.begin() + left_shift);
+        ir.insert (ir.end(), left_shift, 0.0);
+    }
+    else if (shift > 0)
+    {
+        // Shift right: remove from end, prepend zeros at beginning
+        ir.erase (ir.end() - shift, ir.end());
+        ir.insert (ir.begin(), shift, 0.0);
+    }
+}
+
 void interpolate_ga (double alpha)
 {
     // Extract IR indices and alpha for interpolation
@@ -120,46 +137,15 @@ void interpolate_ga (double alpha)
     shift_1 = std::max (-static_cast<int> (ir_shifted_0_1.size()) + 1,
                         std::min (shift_1, static_cast<int> (ir_shifted_0_1.size()) - 1));
 
-    if (shift_0 < 0)
-    {
-        // Shift left: remove from beginning, append zeros at end
-        int left_shift = -shift_0;
-        ir_shifted_0_0.erase (ir_shifted_0_0.begin(), ir_shifted_0_0.begin() + left_shift);
-        ir_shifted_0_0.insert (ir_shifted_0_0.end(), left_shift, 0.0);
+    static int reconstruction_offset_0 =
+        static_cast<int> (std::round (static_cast<double> (-shift_0) * (1 - alpha)));
+    static int reconstruction_offset_1 =
+        static_cast<int> (std::round (static_cast<double> (-shift_1) * (1 - alpha)));
 
-        ir_shifted_0_1.erase (ir_shifted_0_1.begin(), ir_shifted_0_1.begin() + left_shift);
-        ir_shifted_0_1.insert (ir_shifted_0_1.end(), left_shift, 0.0);
-    }
-    else if (shift_0 > 0)
-    {
-        // Shift right: remove from end, prepend zeros at beginning
-        ir_shifted_0_0.erase (ir_shifted_0_0.end() - shift_0, ir_shifted_0_0.end());
-        ir_shifted_0_0.insert (ir_shifted_0_0.begin(), shift_0, 0.0);
+    apply_shift (ir_shifted_0_0, shift_0);
+    apply_shift (ir_shifted_0_1, shift_1);
 
-        ir_shifted_0_1.erase (ir_shifted_0_1.end() - shift_0, ir_shifted_0_1.end());
-        ir_shifted_0_1.insert (ir_shifted_0_1.begin(), shift_0, 0.0);
-    }
-
-    if (shift_1 < 0)
-    {
-        // Shift left: remove from beginning, append zeros at end
-        int left_shift = -shift_1;
-        ir_shifted_0_1.erase (ir_shifted_0_1.begin(), ir_shifted_0_1.begin() + left_shift);
-        ir_shifted_0_1.insert (ir_shifted_0_1.end(), left_shift, 0.0);
-
-        ir_shifted_0_1.erase (ir_shifted_0_1.begin(), ir_shifted_0_1.begin() + left_shift);
-        ir_shifted_0_1.insert (ir_shifted_0_1.end(), left_shift, 0.0);
-    }
-    else if (shift_1 > 0)
-    {
-        // Shift right: remove from end, prepend zeros at beginning
-        ir_shifted_0_1.erase (ir_shifted_0_1.end() - shift_1, ir_shifted_0_1.end());
-        ir_shifted_0_1.insert (ir_shifted_0_1.begin(), shift_1, 0.0);
-
-        ir_shifted_0_1.erase (ir_shifted_0_1.end() - shift_1, ir_shifted_0_1.end());
-        ir_shifted_0_1.insert (ir_shifted_0_1.begin(), shift_1, 0.0);
-    }
-
+    // Interpolate shifted IR with clean IR
     for (size_t n = 0; n < ir_interpolated_0_0.size(); ++n)
     {
         ir_interpolated_0_0[n] =
@@ -168,7 +154,9 @@ void interpolate_ga (double alpha)
             (1.0 - alpha) * irs_clean_0_1[lower_ir_idx][n] + alpha * ir_shifted_0_1[n];
     }
 
-    // TODO: Implement proportional shift back after interpolation
+    // Proportional shift back after interpolation
+    apply_shift (ir_interpolated_0_0, reconstruction_offset_0);
+    apply_shift (ir_interpolated_0_1, reconstruction_offset_1);
 }
 
 void interpolate_dtw (double alpha)
