@@ -12,7 +12,7 @@
 
     <source name="prim_source">
       <sound type="omni" gain="-20.0" sincorder="64"/>
-      <position>0 3.0 0.0 0.0</position>
+      <position>0 2.0 0.0 0.0</position>
     </source>
 
     <receiver name="hrtf_receiver" type="hrtf" nf_filter="true" sincorder="64">

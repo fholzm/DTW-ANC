@@ -28,7 +28,7 @@ fxlms_2e2u(order, ctl_stepsize, ctl_reset, ctl_adapt, ctl_delay, e0, e1, x, r00,
 };
 
 
-order = 192;
+order = 128;
 in_level = abs : ba.linear2db : si.smoo : hbargraph("[7]Level L[unit:dB]",-100,-40);
 
 
