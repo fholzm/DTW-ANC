@@ -5,6 +5,7 @@ FROM ghcr.io/astral-sh/uv:$UV_VERSION AS uv
 
 
 FROM mcr.microsoft.com/vscode/devcontainers/base:ubuntu-22.04
+ARG FAUST_VERSION=2.85.5
 
 ENV PYTHONDONTWRITEBYTECODE=True \
     PYTHONUNBUFFERED=True \
@@ -15,12 +16,14 @@ RUN apt-get update \
     && echo "jackd jackd/tweak_rt_limits boolean true" | debconf-set-selections \
     && echo "msttcorefonts msttcorefonts/accepted-mscorefonts-eula boolean true" | debconf-set-selections \
     && apt-get install -y --no-install-recommends\
+    bison \
     build-essential \
     bzip2 \
+    cmake \
     coreutils \
     curl \
     ca-certificates \
-    faust \
+    flex \
     git \
     git-lfs \
     jackd \
@@ -37,6 +40,7 @@ RUN apt-get update \
     libxext6 \
     libxrender1 \
     llvm \
+    make \
     htop \
     mercurial \
     msttcorefonts \
@@ -50,6 +54,16 @@ RUN apt-get update \
     zsh \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+USER root
+RUN set -eux; \
+    cd /tmp; \
+    curl -L -o faust.tar.gz "https://github.com/grame-cncm/faust/releases/download/${FAUST_VERSION}/faust-${FAUST_VERSION}.tar.gz"; \
+    tar -xzf faust.tar.gz; \
+    cd "faust-${FAUST_VERSION}"; \
+    make -j"$(nproc)" compiler; \
+    make install PREFIX=/usr/local; \
+    rm -rf /tmp/faust.tar.gz "/tmp/faust-${FAUST_VERSION}"
 
 RUN echo "GROUP ( libbsd.so )" > /usr/lib/x86_64-linux-gnu/libbsd_auto.so \
     && echo "/usr/lib/x86_64-linux-gnu/libbsd_auto.so" \
