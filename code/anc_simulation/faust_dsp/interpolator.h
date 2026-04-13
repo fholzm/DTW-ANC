@@ -142,8 +142,10 @@ void interpolate_ga (double alpha)
     static int reconstruction_offset_1 =
         static_cast<int> (std::round (static_cast<double> (-shift_1) * alpha));
 
-    apply_shift (ir_shifted_0_0, shift_0);
-    apply_shift (ir_shifted_0_1, shift_1);
+    if (shift_0 != 0)
+        apply_shift (ir_shifted_0_0, shift_0);
+    if (shift_1 != 0)
+        apply_shift (ir_shifted_0_1, shift_1);
 
     // Interpolate shifted IR with clean IR
     for (size_t n = 0; n < ir_interpolated_0_0.size(); ++n)
@@ -155,8 +157,10 @@ void interpolate_ga (double alpha)
     }
 
     // Proportional shift back after interpolation
-    apply_shift (ir_interpolated_0_0, reconstruction_offset_0);
-    apply_shift (ir_interpolated_0_1, reconstruction_offset_1);
+    if (reconstruction_offset_0 != 0)
+        apply_shift (ir_interpolated_0_0, reconstruction_offset_0);
+    if (reconstruction_offset_1 != 0)
+        apply_shift (ir_interpolated_0_1, reconstruction_offset_1);
 }
 
 void interpolate_dtw (double alpha)

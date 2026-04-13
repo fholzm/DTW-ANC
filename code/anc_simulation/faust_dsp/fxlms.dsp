@@ -1,7 +1,7 @@
 declare name "ANC control filter";
 declare author "Felix Holzmüller";
 declare copyright "IEM";
-declare version "20240618_1650";
+declare version "20260413_2200";
 declare license "MIT";
 
 declare options "[osc:on]";
@@ -28,7 +28,7 @@ fxlms_2e2u(order, ctl_stepsize, ctl_reset, ctl_adapt, ctl_delay, e0, e1, x, r00,
 };
 
 
-order = 128;
+order = 192;
 in_level = abs : ba.linear2db : si.smoo : hbargraph("[7]Level L[unit:dB]",-100,-40);
 
 

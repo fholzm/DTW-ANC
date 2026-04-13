@@ -11,7 +11,7 @@ noise_cutoff_freq = 1000.0  # Hz
 start_position = 0.0  # meters
 n_realizations = 100
 start_realization = 0
-stepsize = 0.001
+stepsize = 0.002
 interpolation_types = ["reference", "nn", "linear", "ga", "dtw"]
 
 port_src = 9001
@@ -208,14 +208,14 @@ def main():
 
             time.sleep(9)
 
-            client_pd.send_message("/position", [0.075, 2000])
-            time.sleep(12)
+            client_pd.send_message("/position", [0.075, 5000])
+            time.sleep(15)
 
             client_pd.send_message("/position", [0.225, 5000])
             time.sleep(15)
 
             client_pd.send_message("/position", [0.525, 5000])
-            time.sleep(15)
+            time.sleep(20)
 
             client_pd.send_message("/record", 0)
             client_pd.send_message("/play", 0)

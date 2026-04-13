@@ -20,7 +20,7 @@ plt.rcParams["xtick.labelsize"] = 1 * 8
 plt.rcParams["ytick.labelsize"] = 1 * 8
 plt.rcParams["legend.fontsize"] = 1 * 8
 
-movements = [[10, 12], [22, 24], [34, 36]]
+movements = [[10, 15], [25, 30], [40, 45]]
 
 
 def parse_audiofiles(directory: str) -> tuple[int, list[str]]:
@@ -117,10 +117,10 @@ def main():
             rms_signal_mean_tmp += signal_rms[realization][method_idx][:min_filelength]
         rms_signal_mean.append(rms_signal_mean_tmp)
 
-    methods_sorted = ["reference", "nn", "linear", "dtw"]
-    method_labels = ["Reference", "NN", "LI", "DTW"]
-    linecolors = ["black", "tab:blue", "tab:orange", "tab:green"]
-    linestyles = ["-", "-", "-", "-"]
+    methods_sorted = ["reference", "nn", "linear", "ga", "dtw"]
+    method_labels = ["Reference", "NN", "LI", "GA", "DTW"]
+    linecolors = ["black", "tab:blue", "tab:orange", "tab:purple", "tab:green"]
+    linestyles = ["-", "-", "-", "-", "-"]
 
     plt.figure(figsize=(3.5, 1.75))
     time_axis = np.arange(min_filelength) / fs
@@ -152,7 +152,7 @@ def main():
 
     plt.xlabel("Time (s)")
     plt.ylabel("RMS Amplitude (dB)")
-    plt.xlim(0, 46)
+    plt.xlim(0, 60)
     plt.legend(
         loc="lower center",
         bbox_to_anchor=(0.5, 1.0),
