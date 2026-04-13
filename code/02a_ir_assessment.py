@@ -239,7 +239,7 @@ def process_config(config_path: str):
 
                     # Inner loop - interpolate to all positions in between
                     for jj in range(1, int(positions_per_segment)):
-                        alpha = 1 - jj / positions_per_segment
+                        alpha = jj / positions_per_segment
 
                         if method == "direct":
                             ir_interpolated = interpolate.interpolate_ir_direct(
@@ -250,7 +250,7 @@ def process_config(config_path: str):
                                 ir_pos0, ir_pos1, alpha
                             )
                         elif method == "ga":
-                            offset_reconstruction = -int(np.round(offset * (1 - alpha)))
+                            offset_reconstruction = -int(np.round(offset * alpha))
 
                             ir_interpolated = interpolate.interpolate_ir_direct(
                                 ir_pos0, ir_pos1_shifted, alpha

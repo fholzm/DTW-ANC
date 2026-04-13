@@ -133,7 +133,7 @@ def interpolate_ir_dtw(
     displacement_pos1 : np.ndarray
         Displacement vector used for warping at position 1
     alpha : float
-        Interpolation factor (0 = position 1, 1 = position 0)
+        Interpolation factor (0 = position 0, 1 = position 1)
     dewarping_interpolator : str
         Interpolator to extract values at integer positions after dewarping
 
@@ -145,15 +145,15 @@ def interpolate_ir_dtw(
 
     # Linear interpolation of warped IRs
     if alpha >= 0.5:
-        ir_interpolated_warped = alpha * ir_pos0 + (1 - alpha) * ir_pos1_warped
+        ir_interpolated_warped = (1 - alpha) * ir_pos0_warped + alpha * ir_pos1
 
         # Find updated indices for de-warping
-        idx_dewarping = np.arange(len(ir_pos0)) - displacement_pos1 * (1 - alpha)
+        idx_dewarping = np.arange(len(ir_pos0)) - displacement_pos0 * (1 - alpha)
     else:
-        ir_interpolated_warped = alpha * ir_pos0_warped + (1 - alpha) * ir_pos1
+        ir_interpolated_warped = (1 - alpha) * ir_pos0 + alpha * ir_pos1_warped
 
         # Find updated indices for de-warping
-        idx_dewarping = np.arange(len(ir_pos0)) - displacement_pos0 * (alpha)
+        idx_dewarping = np.arange(len(ir_pos0)) - displacement_pos1 * (alpha)
 
     # Apply spline interpolation to get samples at integer-indices
     if dewarping_interpolator == "cs":
@@ -187,7 +187,7 @@ def interpolate_ir_direct(
     ir_pos1 : np.ndarray
         Impulse response at position 1
     alpha : float
-        Interpolation factor (0 = position 1, 1 = position 0)
+        Interpolation factor (0 = position 0, 1 = position 1)
 
     Returns
     -------
@@ -195,7 +195,7 @@ def interpolate_ir_direct(
         Interpolated impulse response
     """
 
-    ir_interpolated = alpha * ir_pos0 + (1 - alpha) * ir_pos1
+    ir_interpolated = (1 - alpha) * ir_pos0 + alpha * ir_pos1
     return ir_interpolated
 
 
@@ -211,7 +211,7 @@ def interpolate_ir_nn(
     ir_pos1 : np.ndarray
         Impulse response at position 1
     alpha : float
-        Interpolation factor (0 = position 1, 1 = position 0)
+        Interpolation factor (0 = position 0, 1 = position 1)
 
     Returns
     -------
@@ -219,5 +219,5 @@ def interpolate_ir_nn(
         Interpolated impulse response
     """
 
-    ir_interpolated = ir_pos0 if alpha >= 0.5 else ir_pos1
+    ir_interpolated = ir_pos0 if alpha <= 0.5 else ir_pos1
     return ir_interpolated
