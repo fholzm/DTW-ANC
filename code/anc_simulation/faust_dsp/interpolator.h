@@ -137,9 +137,9 @@ void interpolate_ga (double alpha)
     shift_1 = std::max (-static_cast<int> (ir_shifted_0_1.size()) + 1,
                         std::min (shift_1, static_cast<int> (ir_shifted_0_1.size()) - 1));
 
-    static int reconstruction_offset_0 =
+    const int reconstruction_offset_0 =
         static_cast<int> (std::round (static_cast<double> (-shift_0) * alpha));
-    static int reconstruction_offset_1 =
+    const int reconstruction_offset_1 =
         static_cast<int> (std::round (static_cast<double> (-shift_1) * alpha));
 
     if (shift_0 != 0)
