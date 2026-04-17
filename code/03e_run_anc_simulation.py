@@ -9,10 +9,10 @@ fs = 16000
 blocksize = 16
 noise_cutoff_freq = 1000.0  # Hz
 start_position = 0.5  # meters
-n_realizations = 1
+n_realizations = 100
 start_realization = 0
 stepsize = 0.002
-interpolation_types = ["nn", "linear", "ga", "dtw", "reference"]
+interpolation_types = ["reference", "nn", "linear", "ga", "dtw"]
 
 port_src = 9001
 port_secpath = 9002

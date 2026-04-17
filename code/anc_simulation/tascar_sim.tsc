@@ -17,7 +17,7 @@
 
     <receiver name="hrtf_receiver" type="hrtf" nf_filter="true" sincorder="4">
       <position>
-        0 0.5 0 0
+        0 0.0 0 0
       </position>
     </receiver>
 

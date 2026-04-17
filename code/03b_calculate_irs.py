@@ -13,7 +13,7 @@ config = {
     "dataset_path": "../results/data/TASCAR_IRs/measured_irs_sim.npz",
     "spacing_fixpos": 15.0,  # spacing of the reference points, centimeters
     "step_patterns": "symmetric1",  # Allowed step patterns for DTW
-    "ir_range": [0, 128],  # taps of the IR to consider in analysis (was: range(0, 64))
+    "ir_range": [0, 128],  # taps of the IR to consider in analysis (was: range(0, 128))
     "export_results": True,
 }
 

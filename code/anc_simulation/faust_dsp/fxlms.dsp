@@ -10,25 +10,25 @@ import("stdfaust.lib");
 
 fxlms_2e2u(order, ctl_stepsize, ctl_reset, ctl_adapt, ctl_delay, e0, e1, x, r00, r01, r10, r11) = (si.bus(2 * order) ~ adaptation) : apply_filter : _, _  with {
 
-    adaptation = si.bus(2*order) <: 
+    adaptation = si.bus(2*order) <:
                  par(i, order,
-                     ba.selector(i, 2*order) : 
+                     ba.selector(i, 2*order) :
                      - (ctl_adapt * ctl_stepsize * (e0 * (r00 : @(i + ctl_delay)) +
-                                                e1 * (r10 : @(i + ctl_delay))))), 
+                                                e1 * (r10 : @(i + ctl_delay))))),
                  par(i, order,
-                     ba.selector(i+order, 2*order) : 
+                     ba.selector(i+order, 2*order) :
                      - (ctl_adapt * ctl_stepsize * (e0 * (r01 : @(i + ctl_delay)) +
                                                 e1 * (r11 : @(i + ctl_delay))))) :
                  par(i, order*2, *(ctl_reset * -1 + 1));
 
-    apply_filter = si.bus(2*order) <: 
+    apply_filter = si.bus(2*order) <:
                    sum(i, order,
                        ba.selector(i, 2*order) * (x : @(i))),
                    sum(i, order, ba.selector(i+order, 2*order) * (x : @(i)));
 };
 
 
-order = 192;
+order = 256;
 in_level = abs : ba.linear2db : si.smoo : hbargraph("[7]Level L[unit:dB]",-100,-40);
 
 

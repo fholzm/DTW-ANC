@@ -45,8 +45,8 @@ def parse_audiofiles(directory: str) -> tuple[int, list[str]]:
     fn_pattern = [file.split(".wav")[0].split("_") for file in all_files]
 
     # Number of realization is second element in fn_pattern
-    # n_realizations = len(set([fn[1] for fn in fn_pattern]))
-    n_realizations = 1
+    n_realizations = len(set([fn[1] for fn in fn_pattern]))
+    # n_realizations = 1
 
     # Method is last part if filename pattern
     methods = list(set([fn[-1] for fn in fn_pattern]))
@@ -154,7 +154,6 @@ def main():
     plt.xlabel("Time (s)")
     plt.ylabel("RMS Amplitude (dB)")
     plt.xlim(0, 60)
-    plt.ylim([-40, -20])
     plt.legend(
         loc="lower center",
         bbox_to_anchor=(0.5, 1.0),
