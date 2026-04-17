@@ -7,13 +7,13 @@ from tqdm import tqdm
 from lxml import objectify, etree
 
 # Define global parameters
-sec_src_coords = [[-0.177, -0.177, 0.0], [-0.177, 0.177, 0.0]]
+sec_src_coords = [[0.177, 0.177, 0.0], [0.177, -0.177, 0.0]]
 sec_src_gain = -20.0
-positions_to_test = np.arange(0.0, 0.7505, 0.005, dtype=float)
+positions_to_test = np.arange(0.5, 1.105, 0.005, dtype=float)
 fs = 16000
 ir_length = 16000
 n_jobs = 8
-sinc_order = 64
+sinc_order = 4
 
 
 def generate_tascar_project(position: float = 0.0) -> str:
@@ -28,7 +28,7 @@ def generate_tascar_project(position: float = 0.0) -> str:
         "scene",
         name=fn,
         guiscale="6",
-        ismorder="0",
+        ismorder="2",
     )
 
     # Add secondary source at specified coordinates and gain
@@ -56,6 +56,28 @@ def generate_tascar_project(position: float = 0.0) -> str:
         # prewarpingmode="2",
     )
     pos = objectify.SubElement(rec, "position")._setText(f"0 {position} 0 0")
+
+    room_walls = objectify.SubElement(
+        scene,
+        "facegroup",
+        name="room_walls",
+        shoeboxwalls = "2.5 1.5 1",
+        material = "window"
+    )
+    room_ceiling = objectify.SubElement(
+        scene,
+        "facegroup",
+        name="room_ceiling",
+        shoeboxceiling = "2.5 1.5 1",
+        material = "carpet_on_concrete"
+    )
+    room_floor = objectify.SubElement(
+        scene,
+        "facegroup",
+        name="room_floor",
+        shoeboxfloor = "2.5 1.5 1",
+        material = "carpet_on_concrete"
+    )
 
     # Remove annotations from root
     objectify.deannotate(root, xsi_nil=True)

@@ -1,20 +1,20 @@
 declare name "Secondary path interpolator";
 declare author "Felix Holzmüller";
 declare copyright "IEM";
-declare version "20260411_1645";
+declare version "20260417_1000";
 declare license "GPLv3";
 declare options "[osc:on]";
 
 import("stdfaust.lib");
 
-IR_SIZE = 64;
+IR_SIZE = 128;
 
 // Interpolator functions from interpolator.h
 interpolate_c = ffunction( float interpolate(float, int, int, int), "interpolator.h", "");
 get_alpha_c = ffunction( float get_alpha(float), "interpolator.h", "");
 
 // Controlable position
-position = hslider("[1]Position", 0.0, 0.0, 0.75, 0.001) : si.smoo;
+position = hslider("[1]Position", 0.5, 0.5, 1.1, 0.001) : si.smoo;
 
 // Get interpolation factor alpha based on position
 alpha = get_alpha_c(position);

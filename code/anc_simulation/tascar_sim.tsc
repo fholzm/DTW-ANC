@@ -1,24 +1,28 @@
 <?xml version='1.0' encoding='utf-8'?>
 <session attribution="Felix Holzmüller" license="GPLv3" srv_port="9000" requirefragsize="16" requiresrate="16000">
-  <scene name="ANC_simulation" guiscale="6" ismorder="0">
+  <scene name="ANC_simulation" guiscale="6" ismorder="2">
     <source name="sec_source_0">
-      <sound type="omni" gain="-20.0" sincorder="64"/>
-      <position>0 -0.177 -0.177 0.0</position>
+      <sound type="omni" gain="-20.0" sincorder="4"/>
+      <position>0 0.177 0.177 0.0</position>
     </source>
     <source name="sec_source_1">
-      <sound type="omni" gain="-20.0" sincorder="64"/>
-      <position>0 -0.177 0.177 0.0</position>
+      <sound type="omni" gain="-20.0" sincorder="4"/>
+      <position>0 0.177 -0.177 0.0</position>
     </source>
 
     <source name="prim_source">
-      <sound type="omni" gain="-20.0" sincorder="64"/>
-      <position>0 2.0 0.0 0.0</position>
+      <sound type="omni" gain="-20.0" sincorder="4"/>
+      <position>0 -0.5 0.0 0.0</position>
     </source>
 
-    <receiver name="hrtf_receiver" type="hrtf" nf_filter="true" sincorder="64">
+    <receiver name="hrtf_receiver" type="hrtf" nf_filter="true" sincorder="4">
       <position>
-        0 0.0 0 0
+        0 0.5 0 0
       </position>
     </receiver>
+
+    <facegroup name="room_walls" shoeboxwalls="2.5 1.5 1" material="window"/>
+    <facegroup name="room_ceiling" shoeboxceiling="2.5 1.5 1" material="carpet_on_concrete"/>
+    <facegroup name="room_floor" shoeboxfloor="2.5 1.5 1" material="carpet_on_concrete"/>
   </scene>
 </session>

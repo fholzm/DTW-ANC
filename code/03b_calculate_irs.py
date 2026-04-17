@@ -13,7 +13,7 @@ config = {
     "dataset_path": "../results/data/TASCAR_IRs/measured_irs_sim.npz",
     "spacing_fixpos": 15.0,  # spacing of the reference points, centimeters
     "step_patterns": "symmetric1",  # Allowed step patterns for DTW
-    "ir_range": [0, 64],  # taps of the IR to consider in analysis (was: range(0, 64))
+    "ir_range": [0, 128],  # taps of the IR to consider in analysis (was: range(0, 64))
     "export_results": True,
 }
 
@@ -85,6 +85,8 @@ def main():
     ax2.set_ylim(config["ir_range"][0] - 0.5, config["ir_range"][1] - 1.5)
     ax2.set_ylabel("Samples")
     ax2.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
+
+    plt.savefig("tmp.png")
 
     # Select reference positions based on angle spacing
     ref_indices = np.where((position - position[0]) % config["spacing_fixpos"] < 1e-6)[
