@@ -119,4 +119,4 @@ if __name__ == "__main__":
     fig.tight_layout(pad=0.1)
 
     if config["export_figures"]:
-        plt.savefig("../results/figures/holzm5.pdf")
+        plt.savefig("../results/figures/holzm4.pdf")

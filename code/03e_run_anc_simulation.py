@@ -8,10 +8,10 @@ from tqdm import tqdm
 fs = 16000
 blocksize = 16
 noise_cutoff_freq = 1000.0  # Hz
-start_position = 0.5  # meters
+start_position = 0.4  # meters
 n_realizations = 100
 start_realization = 0
-stepsize = 0.002
+stepsize = 0.001
 interpolation_types = ["reference", "nn", "linear", "ga", "dtw"]
 
 port_src = 9001
@@ -208,13 +208,13 @@ def main():
 
             time.sleep(9)
 
-            client_pd.send_message("/position", [0.575, 5000])
+            client_pd.send_message("/position", [0.475, 5000])
             time.sleep(15)
 
-            client_pd.send_message("/position", [0.725, 5000])
+            client_pd.send_message("/position", [0.625, 5000])
             time.sleep(15)
 
-            client_pd.send_message("/position", [1.025, 5000])
+            client_pd.send_message("/position", [0.925, 5000])
             time.sleep(20)
 
             client_pd.send_message("/record", 0)

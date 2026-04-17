@@ -3,11 +3,11 @@
   <scene name="ANC_simulation" guiscale="6" ismorder="2">
     <source name="sec_source_0">
       <sound type="omni" gain="-20.0" sincorder="4"/>
-      <position>0 0.177 0.177 0.0</position>
+      <position>0 0.2 0.2 0.0</position>
     </source>
     <source name="sec_source_1">
       <sound type="omni" gain="-20.0" sincorder="4"/>
-      <position>0 0.177 -0.177 0.0</position>
+      <position>0 0.2 -0.2 0.0</position>
     </source>
 
     <source name="prim_source">

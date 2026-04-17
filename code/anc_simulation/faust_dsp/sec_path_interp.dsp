@@ -14,7 +14,7 @@ interpolate_c = ffunction( float interpolate(float, int, int, int), "interpolato
 get_alpha_c = ffunction( float get_alpha(float), "interpolator.h", "");
 
 // Controlable position
-position = hslider("[1]Position", 0.5, 0.5, 1.1, 0.001) : si.smoo;
+position = hslider("[1]Position", 0.4, 0.4, 1.15, 0.001) : si.smoo;
 
 // Get interpolation factor alpha based on position
 alpha = get_alpha_c(position);

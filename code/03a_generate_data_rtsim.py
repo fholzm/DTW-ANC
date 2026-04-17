@@ -7,9 +7,9 @@ from tqdm import tqdm
 from lxml import objectify, etree
 
 # Define global parameters
-sec_src_coords = [[0.177, 0.177, 0.0], [0.177, -0.177, 0.0]]
+sec_src_coords = [[0.2, 0.2, 0.0], [0.2, -0.2, 0.0]]
 sec_src_gain = -20.0
-positions_to_test = np.arange(0.5, 1.105, 0.005, dtype=float)
+positions_to_test = np.arange(0.4, 1.155, 0.005, dtype=float)
 fs = 16000
 ir_length = 16000
 n_jobs = 8
