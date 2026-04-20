@@ -86,8 +86,6 @@ def main():
     ax2.set_ylabel("Samples")
     ax2.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
 
-    plt.savefig("tmp.png")
-
     # Select reference positions based on angle spacing
     ref_indices = np.where((position - position[0]) % config["spacing_fixpos"] < 1e-6)[
         0
