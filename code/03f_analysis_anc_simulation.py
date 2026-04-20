@@ -118,6 +118,12 @@ def main():
             rms_signal_mean_tmp += signal_rms[realization][method_idx][:min_filelength]
         rms_signal_mean.append(rms_signal_mean_tmp)
 
+    # Normalize to mean disturbance RMS
+    d_mean = np.mean(rms_signal_mean[methods.index("reference")][rms_length * fs // 1000 : -rms_length * fs // 1000])
+
+    for method_idx in range(len(methods)):
+        rms_signal_mean[method_idx] /= d_mean
+
     methods_sorted = ["reference", "nn", "linear", "ga", "dtw"]
     method_labels = ["Reference", "NN", "LI", "GA", "DTW"]
     linecolors = ["black", "tab:blue", "tab:orange", "tab:purple", "tab:green"]
