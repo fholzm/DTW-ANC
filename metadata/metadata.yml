@@ -1,22 +1,7 @@
-metadata_version: 1
+metadata_version: 1.1
 name: Dynamic Time Warping for Secondary Path Interpolation in Local Active Noise
   Control
-description: For stable and performant local active noise control (ANC), accurate
-  estimates of the secondary path between sources and the desired point of cancellation
-  are required. This poses a problem in time-variant scenes with variable point of
-  cancellation, as in practice these paths are recorded prior to operation for a limited
-  number of positions. In this article, we propose an interpolation approach for impulse
-  responses of secondary paths. By applying dynamic time warping (DTW), impulse responses
-  are properly aligned before interpolation and de-warping. The system is benchmarked
-  against nearest-neighbor and linear interpolation for translation and rotation of
-  the listener's head. Our DTW-based technique exhibits lower overall system mismatch
-  and extends the frequency range for stable operation, especially for lateral translation
-  and coarse measurement grids. It outperforms the other systems especially in terms
-  of phase error towards high frequencies. In simulation, an up to 15 dB higher noise
-  reduction could be achieved for broadband disturbances. The proposed technique can
-  potentially reduce the required number of measurement positions of secondary paths
-  substantially while increasing the controlled frequency bandwidth for time-variant
-  real-world systems.
+description: For stable and performant local active noise control (ANC), accurate estimates of the paths between secondary sources and the desired points of cancellation are required. When these paths are recorded prior to operation for a limited number of positions, this poses a problem in scenes with moving points of cancellation. In this article, we propose an interpolation approach for filter coefficients of secondary paths. By applying dynamic time warping (DTW) in an offline analysis, impulse responses are properly aligned before interpolation and de-warping during operation. The system is benchmarked against nearest-neighbor and linear interpolation with and without global time alignment for translation and rotation of a listener's head. Our DTW-based technique exhibits lower overall system mismatch and extends the frequency range for stable operation, especially for lateral translation and coarse measurement grids. In simulations, higher noise reduction and extended frequency range of stable operation could be observed compared to the other baseline systems. The proposed technique can reduce the required number of measurement positions of secondary paths substantially while increasing the controlled frequency bandwidth for time‑variant real‑world systems.
 tags:
 - ANC
 - Active Noise Control

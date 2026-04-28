@@ -3,6 +3,8 @@
 
 FROM registry.codeocean.com/codeocean/ubuntu-desktop:ubuntu-22.04-guacamole-1.5.2
 
+ARG FAUST_VERSION=2.85.5
+
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONDONTWRITEBYTECODE=True \
     PYTHONUNBUFFERED=True \
@@ -12,12 +14,14 @@ ENV DEBIAN_FRONTEND=noninteractive \
 RUN apt-get update \
     && echo "jackd jackd/tweak_rt_limits boolean true" | debconf-set-selections \
     && apt-get install -y --no-install-recommends \
+    bison \
     build-essential \
     bzip2 \
+    cmake \
     coreutils \
     curl \
     ca-certificates \
-    faust \
+    flex \
     git \
     git-lfs \
     jackd \
@@ -41,6 +45,16 @@ RUN apt-get update \
     wget \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# Build and install Faust locally because Ubuntu 22.04 ships an outdated version.
+RUN set -eux; \
+    cd /tmp; \
+    curl -L -o faust.tar.gz "https://github.com/grame-cncm/faust/releases/download/${FAUST_VERSION}/faust-${FAUST_VERSION}.tar.gz"; \
+    tar -xzf faust.tar.gz; \
+    cd "faust-${FAUST_VERSION}"; \
+    make -j"$(nproc)" compiler; \
+    make install PREFIX=/usr/local; \
+    rm -rf /tmp/faust.tar.gz "/tmp/faust-${FAUST_VERSION}"
 
 # libbsd workaround (required by TASCAR)
 RUN echo "GROUP ( libbsd.so )" > /usr/lib/x86_64-linux-gnu/libbsd_auto.so \
