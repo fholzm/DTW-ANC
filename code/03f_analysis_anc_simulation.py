@@ -20,7 +20,7 @@ plt.rcParams["xtick.labelsize"] = 1 * 8
 plt.rcParams["ytick.labelsize"] = 1 * 8
 plt.rcParams["legend.fontsize"] = 1 * 8
 
-movements = [[10, 12], [22, 24], [34, 36]]
+movements = [[10, 15], [25, 30], [40, 45]]
 
 
 def parse_audiofiles(directory: str) -> tuple[int, list[str]]:
@@ -46,6 +46,7 @@ def parse_audiofiles(directory: str) -> tuple[int, list[str]]:
 
     # Number of realization is second element in fn_pattern
     n_realizations = len(set([fn[1] for fn in fn_pattern]))
+    # n_realizations = 1
 
     # Method is last part if filename pattern
     methods = list(set([fn[-1] for fn in fn_pattern]))
@@ -106,9 +107,9 @@ def main():
                 sliding_window_rms(signal[..., 0], int(rms_length * fs / 1000))
             )
 
-        if not clipping_detected:
-            n_realizations += 1
-            signal_rms.append(signal_rms_tmp)
+        # if not clipping_detected:
+        n_realizations += 1
+        signal_rms.append(signal_rms_tmp)
 
     # Compute ensemble average of RMS values across realizations for each method
     for method_idx in range(len(methods)):
@@ -117,10 +118,16 @@ def main():
             rms_signal_mean_tmp += signal_rms[realization][method_idx][:min_filelength]
         rms_signal_mean.append(rms_signal_mean_tmp)
 
-    methods_sorted = ["reference", "nn", "linear", "dtw"]
-    method_labels = ["Reference", "NN", "LI", "DTW"]
-    linecolors = ["black", "tab:blue", "tab:orange", "tab:green"]
-    linestyles = ["-", "-", "-", "-"]
+    # Normalize to mean disturbance RMS
+    d_mean = np.mean(rms_signal_mean[methods.index("reference")][rms_length * fs // 1000 : -rms_length * fs // 1000])
+
+    for method_idx in range(len(methods)):
+        rms_signal_mean[method_idx] /= d_mean
+
+    methods_sorted = ["reference", "nn", "linear", "ga", "dtw"]
+    method_labels = ["Reference", "NN", "LI", "GA", "DTW"]
+    linecolors = ["black", "tab:blue", "tab:orange", "tab:purple", "tab:green"]
+    linestyles = ["-", "-", "-", "-", "-"]
 
     plt.figure(figsize=(3.5, 1.75))
     time_axis = np.arange(min_filelength) / fs
@@ -152,7 +159,7 @@ def main():
 
     plt.xlabel("Time (s)")
     plt.ylabel("RMS Amplitude (dB)")
-    plt.xlim(0, 46)
+    plt.xlim(0, 60)
     plt.legend(
         loc="lower center",
         bbox_to_anchor=(0.5, 1.0),

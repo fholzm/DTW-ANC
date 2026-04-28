@@ -26,14 +26,15 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "eval_anc_irs.h"
 
-// TODO: template-based implementation to support double precision directly
 // Initialize spline object
-tk::spline s (ir_index_warped, ir_interpolated_warped);
+tk::spline s_0_0 (ir_index_warped_0_0, ir_interpolated_warped_0_0);
+tk::spline s_0_1 (ir_index_warped_0_1, ir_interpolated_warped_0_1);
 
 double last_alpha = -1.0;
 int last_method = -1;
 
-std::vector<double> ir_interpolated (irs_clean[0]);
+std::vector<double> ir_interpolated_0_0 (irs_clean_0_0[0]);
+std::vector<double> ir_interpolated_0_1 (irs_clean_0_1[0]);
 
 double get_alpha (double position)
 {
@@ -76,10 +77,12 @@ void interpolate_direct (double alpha)
 
     alpha -= static_cast<double> (lower_ir_idx);
 
-    for (size_t n = 0; n < ir_interpolated.size(); ++n)
+    for (size_t n = 0; n < ir_interpolated_0_0.size(); ++n)
     {
-        ir_interpolated[n] =
-            (1.0 - alpha) * irs_clean[lower_ir_idx][n] + alpha * irs_clean[upper_ir_idx][n];
+        ir_interpolated_0_0[n] =
+            (1.0 - alpha) * irs_clean_0_0[lower_ir_idx][n] + alpha * irs_clean_0_0[upper_ir_idx][n];
+        ir_interpolated_0_1[n] =
+            (1.0 - alpha) * irs_clean_0_1[lower_ir_idx][n] + alpha * irs_clean_0_1[upper_ir_idx][n];
     }
 }
 
@@ -90,10 +93,74 @@ void interpolate_nn (double alpha)
     ir_idx = std::max (0, std::min (ir_idx, static_cast<int> (ir_positions.size() - 1)));
 
     // Store in interpolated IR vector
-    for (size_t n = 0; n < ir_interpolated.size(); ++n)
+    for (size_t n = 0; n < ir_interpolated_0_0.size(); ++n)
     {
-        ir_interpolated[n] = irs_clean[ir_idx][n];
+        ir_interpolated_0_0[n] = irs_clean_0_0[ir_idx][n];
+        ir_interpolated_0_1[n] = irs_clean_0_1[ir_idx][n];
     }
+}
+
+void apply_shift (std::vector<double>& ir, int shift)
+{
+    if (shift < 0)
+    {
+        // Shift left: remove from beginning, append zeros at end
+        int left_shift = -shift;
+        ir.erase (ir.begin(), ir.begin() + left_shift);
+        ir.insert (ir.end(), left_shift, 0.0);
+    }
+    else if (shift > 0)
+    {
+        // Shift right: remove from end, prepend zeros at beginning
+        ir.erase (ir.end() - shift, ir.end());
+        ir.insert (ir.begin(), shift, 0.0);
+    }
+}
+
+void interpolate_ga (double alpha)
+{
+    // Extract IR indices and alpha for interpolation
+    int upper_ir_idx =
+        std::min (static_cast<int> (alpha) + 1, static_cast<int> (ir_positions.size()) - 1);
+    int lower_ir_idx = std::max (0, std::min (static_cast<int> (alpha), upper_ir_idx));
+
+    alpha -= static_cast<double> (lower_ir_idx);
+
+    // Shift upper IR according to global alignment
+    std::vector<double> ir_shifted_0_0 (irs_clean_0_0[upper_ir_idx]);
+    std::vector<double> ir_shifted_0_1 (irs_clean_0_1[upper_ir_idx]);
+
+    int shift_0 = static_cast<int> (global_alignment_0_0[lower_ir_idx]);
+    shift_0 = std::max (-static_cast<int> (ir_shifted_0_0.size()) + 1,
+                        std::min (shift_0, static_cast<int> (ir_shifted_0_0.size()) - 1));
+    int shift_1 = static_cast<int> (global_alignment_0_1[lower_ir_idx]);
+    shift_1 = std::max (-static_cast<int> (ir_shifted_0_1.size()) + 1,
+                        std::min (shift_1, static_cast<int> (ir_shifted_0_1.size()) - 1));
+
+    const int reconstruction_offset_0 =
+        static_cast<int> (std::round (static_cast<double> (-shift_0) * alpha));
+    const int reconstruction_offset_1 =
+        static_cast<int> (std::round (static_cast<double> (-shift_1) * alpha));
+
+    if (shift_0 != 0)
+        apply_shift (ir_shifted_0_0, shift_0);
+    if (shift_1 != 0)
+        apply_shift (ir_shifted_0_1, shift_1);
+
+    // Interpolate shifted IR with clean IR
+    for (size_t n = 0; n < ir_interpolated_0_0.size(); ++n)
+    {
+        ir_interpolated_0_0[n] =
+            (1.0 - alpha) * irs_clean_0_0[lower_ir_idx][n] + alpha * ir_shifted_0_0[n];
+        ir_interpolated_0_1[n] =
+            (1.0 - alpha) * irs_clean_0_1[lower_ir_idx][n] + alpha * ir_shifted_0_1[n];
+    }
+
+    // Proportional shift back after interpolation
+    if (reconstruction_offset_0 != 0)
+        apply_shift (ir_interpolated_0_0, reconstruction_offset_0);
+    if (reconstruction_offset_1 != 0)
+        apply_shift (ir_interpolated_0_1, reconstruction_offset_1);
 }
 
 void interpolate_dtw (double alpha)
@@ -106,55 +173,86 @@ void interpolate_dtw (double alpha)
     double alpha_dec = alpha - static_cast<double> (lower_ir_idx);
 
     // Select which warped IR to use
-    const std::vector<double>* ir_pos0;
-    const std::vector<double>* ir_pos1;
-    const std::vector<double>* displacement;
+    const std::vector<double>* ir_pos0_0_0;
+    const std::vector<double>* ir_pos1_0_0;
+    const std::vector<double>* displacement_0_0;
+
+    const std::vector<double>* ir_pos0_0_1;
+    const std::vector<double>* ir_pos1_0_1;
+    const std::vector<double>* displacement_0_1;
 
     if (alpha_dec < 0.5)
     {
-        ir_pos0 = &irs_clean[lower_ir_idx];
-        ir_pos1 = &irs_upper_warped[upper_ir_idx];
-        displacement = &displacement_upper[upper_ir_idx];
+        ir_pos0_0_0 = &irs_clean_0_0[lower_ir_idx];
+        ir_pos1_0_0 = &irs_upper_warped_0_0[upper_ir_idx];
+        displacement_0_0 = &displacement_upper_0_0[upper_ir_idx];
+
+        ir_pos0_0_1 = &irs_clean_0_1[lower_ir_idx];
+        ir_pos1_0_1 = &irs_upper_warped_0_1[upper_ir_idx];
+        displacement_0_1 = &displacement_upper_0_1[upper_ir_idx];
     }
     else
     {
-        ir_pos0 = &irs_lower_warped[lower_ir_idx];
-        ir_pos1 = &irs_clean[upper_ir_idx];
-        displacement = &displacement_lower[lower_ir_idx];
+        ir_pos0_0_0 = &irs_lower_warped_0_0[lower_ir_idx];
+        ir_pos1_0_0 = &irs_clean_0_0[upper_ir_idx];
+        displacement_0_0 = &displacement_lower_0_0[lower_ir_idx];
+
+        ir_pos0_0_1 = &irs_lower_warped_0_1[lower_ir_idx];
+        ir_pos1_0_1 = &irs_clean_0_1[upper_ir_idx];
+        displacement_0_1 = &displacement_lower_0_1[lower_ir_idx];
     }
 
     // Linear interpolate original and warped IRs
-    for (size_t n = 0; n < ir_interpolated_warped.size(); ++n)
+    for (size_t n = 0; n < ir_interpolated_warped_0_0.size(); ++n)
     {
-        ir_interpolated_warped[n] = (1.0 - alpha_dec) * (*ir_pos0)[n] + alpha_dec * (*ir_pos1)[n];
+        ir_interpolated_warped_0_0[n] =
+            (1.0 - alpha_dec) * (*ir_pos0_0_0)[n] + alpha_dec * (*ir_pos1_0_0)[n];
+        ir_interpolated_warped_0_1[n] =
+            (1.0 - alpha_dec) * (*ir_pos0_0_1)[n] + alpha_dec * (*ir_pos1_0_1)[n];
 
         // // Calculate filter tap indices for dewarping
-        ir_index_warped[n] =
+        ir_index_warped_0_0[n] =
             static_cast<double> (n)
-            - ((*displacement)[n] * ((alpha_dec < 0.5) ? alpha_dec : (1.0 - alpha_dec)));
+            - ((*displacement_0_0)[n] * ((alpha_dec < 0.5) ? alpha_dec : (1.0 - alpha_dec)));
+        ir_index_warped_0_1[n] =
+            static_cast<double> (n)
+            - ((*displacement_0_1)[n] * ((alpha_dec < 0.5) ? alpha_dec : (1.0 - alpha_dec)));
     }
 
     // Update spline
-    s = tk::spline (ir_index_warped,
-                    ir_interpolated_warped,
-                    tk::spline::cspline,
-                    false,
-                    tk::spline::first_deriv,
-                    0.0,
-                    tk::spline::first_deriv,
-                    0.0);
+    s_0_0 = tk::spline (ir_index_warped_0_0,
+                        ir_interpolated_warped_0_0,
+                        tk::spline::cspline,
+                        false,
+                        tk::spline::first_deriv,
+                        0.0,
+                        tk::spline::first_deriv,
+                        0.0);
+
+    s_0_1 = tk::spline (ir_index_warped_0_1,
+                        ir_interpolated_warped_0_1,
+                        tk::spline::cspline,
+                        false,
+                        tk::spline::first_deriv,
+                        0.0,
+                        tk::spline::first_deriv,
+                        0.0);
 
     // Evaluate spline and store in interpolated IR vector
-    for (size_t n = 0; n < ir_interpolated.size(); ++n)
+    for (size_t n = 0; n < ir_interpolated_0_0.size(); ++n)
     {
-        ir_interpolated[n] = s (static_cast<double> (n));
+        ir_interpolated_0_0[n] = s_0_0 (static_cast<double> (n));
+        ir_interpolated_0_1[n] = s_0_1 (static_cast<double> (n));
     }
 }
 
-double interpolate (double alpha, int index, int method)
+double interpolate (double alpha, int index, int method, int channel)
 {
     // Sanitize input index
-    index = std::max (0, std::min (index, static_cast<int> (irs_clean[0].size() - 1)));
+    index = std::max (0, std::min (index, static_cast<int> (irs_clean_0_0[0].size() - 1)));
+
+    // Sanitize channel
+    channel = std::max (0, std::min (channel, 1));
 
     // Update interpolated IR at index 0 call only if method or alpha changed
     if ((method != last_method || alpha != last_alpha) && index == 0)
@@ -171,6 +269,9 @@ double interpolate (double alpha, int index, int method)
                 interpolate_direct (alpha);
                 break;
             case 2:
+                interpolate_ga (alpha);
+                break;
+            case 3:
                 interpolate_dtw (alpha);
                 break;
             default:
@@ -179,5 +280,8 @@ double interpolate (double alpha, int index, int method)
         }
     }
 
-    return ir_interpolated[index];
+    if (channel == 0)
+        return ir_interpolated_0_0[index];
+    else
+        return ir_interpolated_0_1[index];
 }

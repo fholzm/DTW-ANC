@@ -27,6 +27,7 @@
     "features": {
         "ghcr.io/dhoeric/features/hadolint:1": {}
     },
+    "shutdownAction": "none",
     "customizations": {
         "vscode": {
             "extensions": [

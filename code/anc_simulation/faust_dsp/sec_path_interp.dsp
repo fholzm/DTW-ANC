@@ -1,26 +1,28 @@
 declare name "Secondary path interpolator";
 declare author "Felix Holzmüller";
 declare copyright "IEM";
-declare version "20260128_1700";
+declare version "20260417_1000";
 declare license "GPLv3";
-
 declare options "[osc:on]";
 
 import("stdfaust.lib");
 
-IR_SIZE = 64;
+IR_SIZE = 128;
 
-// interpolate_c = ffunction( float interpolate_nn(float, int), "interpolator.h", "");
-interpolate_c = ffunction( float interpolate(float, int, int), "interpolator.h", "");
+// Interpolator functions from interpolator.h
+interpolate_c = ffunction( float interpolate(float, int, int, int), "interpolator.h", "");
 get_alpha_c = ffunction( float get_alpha(float), "interpolator.h", "");
 
-position = hslider("[1]Position", 0.25, 0.25, 1.0, 0.001) : si.smoo;
+// Controlable position
+position = hslider("[1]Position", 0.4, 0.4, 1.15, 0.001) : si.smoo;
 
+// Get interpolation factor alpha based on position
 alpha = get_alpha_c(position);
-// index = hslider("index", 0, 0, IR_SIZE - 1, 1);
 
-interpolation_method = nentry("[0]Method[style:menu{'NN':0;'Linear':1;'DTW':2}]", 0, 0, 2, 1);
-fir_coeffs = par(i, IR_SIZE, interpolate_c(alpha, i, interpolation_method));
+// Get interpolated filter coefficients, based on selected method
+interpolation_method = nentry("[0]Method[style:menu{'NN':0;'Linear':1;'Global Alignment':2;'DTW':3}]", 0, 0, 3, 1);
+fir_coeffs_0_0 = par(i, IR_SIZE, interpolate_c(alpha, i, interpolation_method, 0));
+fir_coeffs_0_1 = par(i, IR_SIZE, interpolate_c(alpha, i, interpolation_method, 1));
 
-/* Audio-rate usage */
-process = _ : fi.fir(fir_coeffs) <: attach(_, hbargraph("Output", 0, 1));
+// Process audio with FIR filters
+process = _ <: fi.fir(fir_coeffs_0_0), fi.fir(fir_coeffs_0_1);

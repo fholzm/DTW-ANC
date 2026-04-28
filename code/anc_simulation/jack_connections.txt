@@ -1,9 +1,18 @@
 pure_data:output_1 -#- render.ANC_simulation:prim_source.0.0
-pure_data:output_1 -#- fxlms:in_1
+pure_data:output_1 -#- fxlms:in_2
 pure_data:output_1 -#- sec_path_interp:in_0
+
 render.ANC_simulation:hrtf_receiver_l -#- pure_data:input_1
-render.ANC_simulation:hrtf_receiver_l -#- fxlms:in_0
 render.ANC_simulation:hrtf_receiver_r -#- pure_data:input_2
-sec_path_interp:out_0 -#- fxlms:in_2
+render.ANC_simulation:hrtf_receiver_l -#- fxlms:in_0
+render.ANC_simulation:hrtf_receiver_r -#- fxlms:in_1
+
+sec_path_interp:out_0 -#- fxlms:in_3
+sec_path_interp:out_0 -#- fxlms:in_6
+sec_path_interp:out_1 -#- fxlms:in_4
+sec_path_interp:out_1 -#- fxlms:in_5
+
+fxlms:out_0 -#- render.ANC_simulation:sec_source_0.0.0
+fxlms:out_1 -#- render.ANC_simulation:sec_source_1.0.0
+
 render.sync:sync_out -#- render.ANC_simulation:sync_in
-fxlms:out_0 -#- render.ANC_simulation:sec_source.0.0

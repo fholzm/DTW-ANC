@@ -225,9 +225,21 @@ def process_config(config_path: str):
                             ir_pos1, ir_pos0, step_pattern
                         )
 
+                    if method == "ga":
+                        # Calculate global alignment offset
+                        offset = interpolate.get_global_alignment(ir_pos1, ir_pos0)
+
+                        # Roll IR
+                        ir_pos1_shifted = np.roll(ir_pos1, offset)
+                        # Set rolled over part to zero
+                        if offset > 0:
+                            ir_pos1_shifted[:offset] = 0
+                        elif offset < 0:
+                            ir_pos1_shifted[offset:] = 0
+
                     # Inner loop - interpolate to all positions in between
                     for jj in range(1, int(positions_per_segment)):
-                        alpha = 1 - jj / positions_per_segment
+                        alpha = jj / positions_per_segment
 
                         if method == "direct":
                             ir_interpolated = interpolate.interpolate_ir_direct(
@@ -237,6 +249,23 @@ def process_config(config_path: str):
                             ir_interpolated = interpolate.interpolate_ir_nn(
                                 ir_pos0, ir_pos1, alpha
                             )
+                        elif method == "ga":
+                            offset_reconstruction = -int(np.round(offset * alpha))
+
+                            ir_interpolated = interpolate.interpolate_ir_direct(
+                                ir_pos0, ir_pos1_shifted, alpha
+                            )
+                            ir_interpolated = np.roll(
+                                ir_interpolated, offset_reconstruction
+                            )
+
+                            if offset_reconstruction > 0:
+                                ir_interpolated[:offset_reconstruction] = 0
+                            elif offset_reconstruction < 0:
+                                ir_interpolated[offset_reconstruction:] = 0
+
+                            pass
+
                         elif method == "dtw":
                             ir_interpolated = interpolate.interpolate_ir_dtw(
                                 ir_pos0,
@@ -392,7 +421,11 @@ def process_config(config_path: str):
     # Plot system mismatch
     reg_smplot = 10 ** (config["plot_sm_limits"][0] / 20)
     if len(config["spacing_fixpos"]) > 1 and results is not None:
-        fn = "../results/figures/holzm2.png" if config["mode"] == "tr" else "../results/figures/holzm3.png"
+        fn = (
+            "../results/figures/holzm1.png"
+            if config["mode"] == "tr"
+            else "../results/figures/holzm2.png"
+        )
         metrics.plot_mag_phase_error_multiplot(
             position,
             spacings,
@@ -419,6 +452,11 @@ def process_config(config_path: str):
                 & (results["method"].to_numpy() == "nn")
             )[0][0]
 
+            idx_ga = np.where(
+                (results["spacing"].to_numpy() == spacing_fixpos)
+                & (results["method"].to_numpy() == "ga")
+            )[0][0]
+
             idx_dtw = np.where(
                 (results["spacing"].to_numpy() == spacing_fixpos)
                 & (results["method"].to_numpy() == "dtw")
@@ -427,16 +465,19 @@ def process_config(config_path: str):
             # Extract corresponding system mismatch arrays
             sm_dir = sm_all[idx_dir]
             sm_nn = sm_all[idx_nn]
+            sm_ga = sm_all[idx_ga]
             sm_dtw = sm_all[idx_dtw]
 
             # Apply regularization for low values
             sm_dir[sm_dir < reg_smplot] = reg_smplot
             sm_nn[sm_nn < reg_smplot] = reg_smplot
+            sm_ga[sm_ga < reg_smplot] = reg_smplot
             sm_dtw[sm_dtw < reg_smplot] = reg_smplot
 
             # Convert to dB
             sm_dir = 20 * np.log10(sm_dir)
             sm_nn = 20 * np.log10(sm_nn)
+            sm_ga = 20 * np.log10(sm_ga)
             sm_dtw = 20 * np.log10(sm_dtw)
 
             # Plot results for system mismatch
@@ -444,6 +485,7 @@ def process_config(config_path: str):
 
             plt.plot(position, sm_nn, label="NN")
             plt.plot(position, sm_dir, label="Direct")
+            plt.plot(position, sm_ga, label="GA")
             plt.plot(position, sm_dtw, label="DTW")
             plt.xlabel(label_pos)
             plt.ylabel("System mismatch (dB)")

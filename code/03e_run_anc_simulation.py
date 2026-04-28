@@ -8,11 +8,11 @@ from tqdm import tqdm
 fs = 16000
 blocksize = 16
 noise_cutoff_freq = 1000.0  # Hz
-start_position = 0.25  # meters
+start_position = 0.4  # meters
 n_realizations = 100
 start_realization = 0
-stepsize = 0.01
-interpolation_types = ["reference", "nn", "linear", "dtw"]
+stepsize = 0.001
+interpolation_types = ["reference", "nn", "linear", "ga", "dtw"]
 
 port_src = 9001
 port_secpath = 9002
@@ -178,8 +178,10 @@ def main():
                 interp_code = 0
             elif interp_type == "linear":
                 interp_code = 1
-            elif interp_type == "dtw":
+            elif interp_type == "ga":
                 interp_code = 2
+            elif interp_type == "dtw":
+                interp_code = 3
             else:  # reference
                 interp_code = 0
 
@@ -206,14 +208,14 @@ def main():
 
             time.sleep(9)
 
-            client_pd.send_message("/position", [0.475, 2000])
-            time.sleep(12)
+            client_pd.send_message("/position", [0.475, 5000])
+            time.sleep(15)
 
-            client_pd.send_message("/position", [0.60, 2000])
-            time.sleep(12)
+            client_pd.send_message("/position", [0.625, 5000])
+            time.sleep(15)
 
-            client_pd.send_message("/position", [0.325, 2000])
-            time.sleep(12)
+            client_pd.send_message("/position", [0.925, 5000])
+            time.sleep(20)
 
             client_pd.send_message("/record", 0)
             client_pd.send_message("/play", 0)

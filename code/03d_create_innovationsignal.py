@@ -5,7 +5,7 @@ import os
 
 n_realizations = 100
 fs = 16000
-sig_length = 50 * fs  # 50 seconds
+sig_length = 70 * fs  # 70 seconds
 lp_cutoff = 1000.0  # Hz
 lp_order = 8
 seed = 42

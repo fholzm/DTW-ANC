@@ -272,7 +272,7 @@ def plot_mag_phase_error_multiplot(
     freq = np.linspace(0, fs / 2, config["plot_nfft"] // 2 + 1)
 
     n_spacings = len(spacings_to_plot)
-    nc = 3
+    nc = 4
 
     figsize = (7.16, 7.16 * n_spacings / 4.5)
 
@@ -385,6 +385,8 @@ def plot_mag_phase_error_multiplot(
                 method_name = "NN"
             elif methods[idx] == "direct":
                 method_name = "LI"
+            elif methods[idx] == "ga":
+                method_name = "GA"
             elif methods[idx] == "dtw":
                 method_name = "DTW"
             else:
